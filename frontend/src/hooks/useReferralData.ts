@@ -5,13 +5,8 @@ import {
   calculateDashboardStats,
   createEmptyDashboardStats,
 } from "../utils/transformers";
-import {
-  generateTimeSeriesWithDateRange,
-  getEarliestEventDate,
-} from "../utils/timeSeries";
-import { getCommissionRates } from "../config/commission";
+import { buildTimeSeriesFromUsers } from "../utils/timeSeries";
 import type { ReferralCode, DashboardStats, TimeSeriesData } from "../types";
-import type { PurchaseEvent } from "../types/purchaseHistory";
 
 interface UseReferralDataReturn {
   referralCodes: ReferralCode[];
@@ -23,10 +18,9 @@ interface UseReferralDataReturn {
 }
 
 export function useReferralData(): UseReferralDataReturn {
-  const commissionRates = getCommissionRates();
   const [referralCodes, setReferralCodes] = useState<ReferralCode[]>([]);
   const [stats, setStats] = useState<DashboardStats>(() =>
-    createEmptyDashboardStats(commissionRates.currency)
+    createEmptyDashboardStats("USD")
   );
   const [timeSeriesData, setTimeSeriesData] = useState<TimeSeriesData[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -37,53 +31,44 @@ export function useReferralData(): UseReferralDataReturn {
       setLoading(true);
       setError(null);
 
-      const response = await apiService.getAdminReferralCodes();
+      // Use system/null identifier to fetch system-level codes (existing logic)
+      const response = await apiService.getAffiliateReferralCodes("system");
 
       if (response.success && response.data) {
         // Transform backend data to frontend format (with earnings calculation)
-        let transformedCodes = transformReferralCodes(
-          response.data,
-          commissionRates
-        );
+        // transformReferralCodes now handles the new AffiliateReferralCode structure
+        let transformedCodes = transformReferralCodes(response.data);
 
         // Fetch purchase history for each referral code to get time series data
-        // This uses get-referral-details which fetches from SQL PurchaseHistory table
-        const allPurchaseEvents: PurchaseEvent[] = [];
+        // Uses the NEW getAffiliatePurchaseHistory API which returns full event details
+        // Collect all users from all referral codes for centralized time series generation
+        const allUsers: Array<{
+          referralCreatedAt?: string | null;
+          events?: any[];
+        }> = [];
 
-        await Promise.all(
-          transformedCodes.map(async (code) => {
-            try {
-              // get-referral-details fetches purchase history from SQL database
-              // It returns user data with events array (already normalized by backend)
-              const detailsResponse = await apiService.getReferralDetails(
-                code.code
-              );
-              if (detailsResponse.success && detailsResponse.data) {
-                // Process each user's purchase history
-                detailsResponse.data.forEach((userData: any) => {
-                  // Backend normalizes events, so they should be an array of event objects
-                  if (userData.events && Array.isArray(userData.events)) {
-                    userData.events.forEach((event: any) => {
-                      // Events are already normalized by backend from SQL JSON field
-                      // Just verify it's an INITIAL_PURCHASE event
-                      if (event && event.type === "INITIAL_PURCHASE") {
-                        // Validate event structure matches PurchaseEvent
-                        if (event.purchased_at_ms && event.period_type) {
-                          allPurchaseEvents.push(event as PurchaseEvent);
-                        }
-                      }
-                    });
-                  }
+        // We fetch history for "system" (null affiliate) to match the codes above.
+        try {
+          const historyResponse = await apiService.getAffiliatePurchaseHistory(
+            "system"
+          );
+
+          if (historyResponse.success && historyResponse.data) {
+            // data is array of { referralCode, users: [ { events:[...] } ] }
+            historyResponse.data.forEach((codeGroup: any) => {
+              if (codeGroup.users && Array.isArray(codeGroup.users)) {
+                codeGroup.users.forEach((user: any) => {
+                  allUsers.push({
+                    referralCreatedAt: user?.referralCreatedAt ?? null,
+                    events: user?.events ?? [],
+                  });
                 });
               }
-            } catch (err) {
-              console.warn(
-                `Failed to fetch purchase history for code ${code.code}:`,
-                err
-              );
-            }
-          })
-        );
+            });
+          }
+        } catch (err) {
+          console.warn(`Failed to fetch purchase history:`, err);
+        }
 
         setReferralCodes(transformedCodes);
 
@@ -91,18 +76,8 @@ export function useReferralData(): UseReferralDataReturn {
         const calculatedStats = calculateDashboardStats(transformedCodes);
         setStats(calculatedStats);
 
-        // Generate time series data from actual purchase events
-        const earliestEventDate = getEarliestEventDate(allPurchaseEvents);
-        const fallbackStart = new Date();
-        fallbackStart.setDate(fallbackStart.getDate() - 29);
-        const startDateForSeries =
-          earliestEventDate || fallbackStart.toISOString().split("T")[0];
-
-        const timeSeries = generateTimeSeriesWithDateRange(
-          allPurchaseEvents,
-          startDateForSeries,
-          new Date()
-        );
+        // Generate time series data using centralized helper
+        const timeSeries = buildTimeSeriesFromUsers(allUsers);
         setTimeSeriesData(timeSeries);
       } else {
         setError(response.message || "Failed to fetch referral codes");

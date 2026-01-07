@@ -1,8 +1,13 @@
 // Purchase History Event Types
+export interface SubscriberAttributeValue {
+  updated_at_ms: number;
+  value: string;
+}
+
 export interface PurchaseEvent {
   event_timestamp_ms: number;
   product_id: string;
-  period_type: 'TRIAL' | 'NORMAL';
+  period_type: "TRIAL" | "NORMAL";
   purchased_at_ms: number;
   expiration_at_ms: number;
   environment: string;
@@ -19,20 +24,28 @@ export interface PurchaseEvent {
   currency: string;
   price: number;
   price_in_purchased_currency: number;
-  subscriber_attributes?: {
-    $email?: {
-      updated_at_ms: number;
-      value: string;
-    };
-  };
+  subscriber_attributes?: Record<string, SubscriberAttributeValue>;
   store: string;
   takehome_percentage: number;
   tax_percentage: number;
   commission_percentage: number;
   offer_code: string | null;
-  type: 'INITIAL_PURCHASE' | 'RENEWAL' | 'CANCELLATION' | 'SUBSCRIPTION_PAUSED' | string;
+  type:
+    | "INITIAL_PURCHASE"
+    | "RENEWAL"
+    | "CANCELLATION"
+    | "SUBSCRIPTION_PAUSED"
+    | "SUBSCRIPTION_EXTENDED"
+    | "BILLING_ISSUE"
+    | "EXPIRATION"
+    | string;
   id: string;
   app_id: string;
+  renewal_number?: number;
+  metadata?: unknown;
+  grace_period_expiration_at_ms?: number;
+  expiration_reason?: string;
+  cancel_reason?: string;
   experiments?: Array<{
     experiment_id: string;
     experiment_variant: string;
@@ -48,4 +61,3 @@ export interface PurchaseHistoryRecord {
   createdAt: string;
   updatedAt: string;
 }
-

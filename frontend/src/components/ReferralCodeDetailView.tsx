@@ -3,18 +3,15 @@ import { apiService } from "../services/api";
 import { useFilters } from "../hooks/useFilters";
 import { formatCurrency } from "../config/commission";
 import type { ReferralCode } from "../types";
-import type { CommissionRate } from "../types/commission";
 import UserDetailView from "./UserDetailView";
 import PerformanceCharts from "./PerformanceCharts";
 import LoadingSpinner from "./LoadingSpinner";
 import ErrorMessage from "./ErrorMessage";
-import { generateTimeSeriesWithDateRange } from "../utils/timeSeries";
-import type { PurchaseEvent } from "../types/purchaseHistory";
+import { buildTimeSeriesFromUsers } from "../utils/timeSeries";
 import type { TimeSeriesData } from "../types";
 
 interface ReferralCodeDetailViewProps {
   referralCode: ReferralCode;
-  commissionRates: CommissionRate;
   onClose: () => void;
 }
 
@@ -23,12 +20,12 @@ interface User {
   email: string | null;
   name: string | null;
   subscriptionInfo?: any;
+  referralCreatedAt?: string | null;
   events?: any[];
 }
 
 export default function ReferralCodeDetailView({
   referralCode,
-  commissionRates,
   onClose,
 }: ReferralCodeDetailViewProps) {
   const [users, setUsers] = useState<User[]>([]);
@@ -57,30 +54,37 @@ export default function ReferralCodeDetailView({
 
         const response = await apiService.getReferralDetails(referralCode.code);
         if (response.success && response.data) {
-          setUsers(response.data);
-
-          // Generate time series data for this code from code creation date to now
-          const allEvents: PurchaseEvent[] = [];
-          response.data.forEach((user: User) => {
-            if (user.events && Array.isArray(user.events)) {
-              user.events.forEach((event: any) => {
-                if (
-                  event &&
-                  event.type === "INITIAL_PURCHASE" &&
-                  event.purchased_at_ms
-                ) {
-                  allEvents.push(event as PurchaseEvent);
-                }
+          // De-dupe by userId (backend can return duplicates if referrals contain repeats)
+          const userById = new Map<string, User>();
+          (response.data as User[]).forEach((u) => {
+            if (!u?.userId) return;
+            const incomingEvents = Array.isArray(u.events) ? u.events : [];
+            const existing = userById.get(u.userId);
+            if (!existing) {
+              userById.set(u.userId, {
+                ...u,
+                events: incomingEvents,
               });
+              return;
             }
+
+            userById.set(u.userId, {
+              ...existing,
+              email: existing.email ?? u.email ?? null,
+              name: existing.name ?? u.name ?? null,
+              subscriptionInfo: existing.subscriptionInfo ?? u.subscriptionInfo,
+              events: [...(existing.events || []), ...incomingEvents],
+            });
           });
 
-          // Use code creation date as start date, current date as end date
-          const startDate = referralCode.createdAt.split("T")[0];
-          const timeSeries = generateTimeSeriesWithDateRange(
-            allEvents,
-            startDate,
-            new Date()
+          const uniqueUsers = Array.from(userById.values());
+          setUsers(uniqueUsers);
+
+          // Generate time series data using centralized helper
+          // Use code creation date as start date
+          const timeSeries = buildTimeSeriesFromUsers(
+            uniqueUsers,
+            referralCode.createdAt
           );
           setTimeSeriesData(timeSeries);
         } else {
@@ -109,7 +113,7 @@ export default function ReferralCodeDetailView({
         userName={selectedUser.name || undefined}
         userEmail={selectedUser.email || undefined}
         referralCode={referralCode.code}
-        commissionRates={commissionRates}
+        commissionConfig={referralCode.commissionConfig}
         onClose={() => setSelectedUser(null)}
       />
     );
@@ -138,11 +142,15 @@ export default function ReferralCodeDetailView({
     );
   }
 
+  const earningsCurrency =
+    referralCode.earnings?.currency ||
+    referralCode.commissionConfig?.find((r) => r.currency)?.currency ||
+    "USD";
+
   const earnings = referralCode.earnings || {
-    fromTrials: 0,
-    fromPaid: 0,
+    breakdown: {},
     total: 0,
-    currency: commissionRates.currency,
+    currency: earningsCurrency,
   };
 
   return (

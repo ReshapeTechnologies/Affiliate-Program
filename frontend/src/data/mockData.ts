@@ -1,14 +1,8 @@
-import type {
-  User,
-  ReferralCode,
-  ReferralEvent,
-  DashboardStats,
-  TimeSeriesData,
-} from "../types";
+import type { User } from "../types";
 
 // Hardcoded user data (Phase 1)
 export const mockUser: User = {
-  id: "user-1",
+  id: "system",
   name: "test influencer",
   email: "testing@influencer.com",
   role: "influencer",

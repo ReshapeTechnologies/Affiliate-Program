@@ -4,12 +4,8 @@ import type {
   TimeSeriesData,
   ReferralStatus,
 } from "../types";
-import type { BackendReferral } from "../types/backend";
-import type { CommissionRate } from "../types/commission";
-import {
-  calculateEarnings,
-  // calculateAverageEarningsPerConversion,
-} from "./earnings";
+import type { AffiliateReferralCode } from "../types/commission";
+import { calculateEarnings } from "./earnings";
 
 /**
  * Provide a shared zeroed-out dashboard stats structure
@@ -27,8 +23,7 @@ export function createEmptyDashboardStats(
     trialConversions: 0,
     paidConversions: 0,
     totalEarnings: {
-      fromTrials: 0,
-      fromPaid: 0,
+      breakdown: {},
       total: 0,
       currency,
     },
@@ -39,8 +34,7 @@ export function createEmptyDashboardStats(
  * Transform backend referral data to frontend format
  */
 export function transformReferralCode(
-  backendRef: BackendReferral,
-  commissionRates?: CommissionRate
+  backendRef: AffiliateReferralCode
 ): ReferralCode {
   const now = new Date();
   const endDate = backendRef.endDate ? new Date(backendRef.endDate) : null;
@@ -48,7 +42,13 @@ export function transformReferralCode(
     ? new Date(backendRef.startDate)
     : null;
   const quota = typeof backendRef.quota === "number" ? backendRef.quota : null;
-  const referralsCount = backendRef.referrals?.length ?? 0;
+
+  // Use stats from backend
+  const referralsCount = backendRef.stats?.totalReferrals ?? 0;
+  const trialConversions = backendRef.stats?.free_trial ?? 0;
+  const paidConversions = backendRef.stats?.purchase ?? 0;
+  const conversions = trialConversions + paidConversions;
+  const usageCount = Math.max(conversions, referralsCount);
 
   // Determine status based on dates
   let status: ReferralStatus = "active";
@@ -56,30 +56,34 @@ export function transformReferralCode(
     (endDate && endDate < now) || (startDate && startDate > now)
   );
 
-  // Get conversions from purchase numbers (trial + paid)
-  const trialConversions = backendRef.purchaseNumbers?.trial || 0;
-  const paidConversions = backendRef.purchaseNumbers?.paid || 0;
-  const conversions = trialConversions + paidConversions;
-  const usageCount = Math.max(conversions, referralsCount);
-
   if (inactiveBySchedule) {
     status = "inactive";
   } else if (quota !== null && usageCount >= quota) {
     status = "exhausted";
   }
 
-  // Calculate earnings if commission rates provided
-  const earnings = commissionRates
-    ? calculateEarnings(trialConversions, paidConversions, commissionRates)
-    : undefined;
+  // Calculate earnings using dynamic rules from the code itself
+  // Map our stats keys to the event names expected in rules
+  const earningsStats = {
+    // Signup earnings are derived from total referrals (each referral implies a signup)
+    signup: referralsCount,
+    free_trial: trialConversions,
+    purchase: paidConversions,
+  };
+
+  const earnings = calculateEarnings(
+    earningsStats,
+    backendRef.commissionConfig || []
+  );
 
   return {
-    id: backendRef._id,
-    code: backendRef.referralCode,
+    id: backendRef.id,
+    code: backendRef.code,
     createdAt:
       backendRef.createdAt || backendRef.startDate || new Date().toISOString(),
     conversions,
     status,
+    commissionConfig: backendRef.commissionConfig || [],
     quota,
     referralsCount,
     startDate: backendRef.startDate || null,
@@ -95,10 +99,9 @@ export function transformReferralCode(
  * Transform array of backend referrals to frontend format
  */
 export function transformReferralCodes(
-  backendRefs: BackendReferral[],
-  commissionRates?: CommissionRate
+  backendRefs: AffiliateReferralCode[]
 ): ReferralCode[] {
-  return backendRefs.map((ref) => transformReferralCode(ref, commissionRates));
+  return backendRefs.map((ref) => transformReferralCode(ref));
 }
 
 /**
@@ -109,6 +112,8 @@ export function calculateDashboardStats(
 ): DashboardStats {
   const defaultCurrency =
     referralCodes.find((code) => code.earnings)?.earnings?.currency || "USD";
+
+  const emptyStats = createEmptyDashboardStats(defaultCurrency);
 
   const totals = referralCodes.reduce((acc, code) => {
     acc.totalConversions += code.conversions || 0;
@@ -125,19 +130,18 @@ export function calculateDashboardStats(
     }
 
     if (code.earnings) {
-      acc.totalEarnings.fromTrials += code.earnings.fromTrials;
-      acc.totalEarnings.fromPaid += code.earnings.fromPaid;
       acc.totalEarnings.total += code.earnings.total;
       acc.totalEarnings.currency = code.earnings.currency;
+
+      // Aggregate breakdown
+      for (const [event, amount] of Object.entries(code.earnings.breakdown)) {
+        acc.totalEarnings.breakdown[event] =
+          (acc.totalEarnings.breakdown[event] || 0) + amount;
+      }
     }
 
     return acc;
-  }, createEmptyDashboardStats(defaultCurrency));
-
-  // const averageEarningsPerConversion = calculateAverageEarningsPerConversion(
-  //   totalEarnings.total,
-  //   totalConversions
-  // );
+  }, emptyStats);
 
   return {
     totalReferralCodes: referralCodes.length,
@@ -149,12 +153,10 @@ export function calculateDashboardStats(
     trialConversions: totals.trialConversions,
     paidConversions: totals.paidConversions,
     totalEarnings: {
-      fromTrials: Number(totals.totalEarnings.fromTrials.toFixed(2)),
-      fromPaid: Number(totals.totalEarnings.fromPaid.toFixed(2)),
+      breakdown: totals.totalEarnings.breakdown,
       total: Number(totals.totalEarnings.total.toFixed(2)),
       currency: totals.totalEarnings.currency,
     },
-    // averageEarningsPerConversion,
   };
 }
 
@@ -177,6 +179,7 @@ export function generateTimeSeriesData(
 
     data.push({
       date: dateKey,
+      signupConversions: 0,
       conversions: 0,
       trialConversions: 0,
       paidConversions: 0,

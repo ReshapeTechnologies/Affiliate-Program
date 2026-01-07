@@ -3,6 +3,8 @@ interface TableFiltersProps {
   onSearchChange: (value: string) => void;
   statusFilter: string;
   onStatusFilterChange: (value: string) => void;
+  usageFilter?: "all" | "used" | "unused";
+  onUsageFilterChange?: (value: "all" | "used" | "unused") => void;
   onClearFilters: () => void;
   hasActiveFilters: boolean;
 }
@@ -12,6 +14,8 @@ export default function TableFilters({
   onSearchChange,
   statusFilter,
   onStatusFilterChange,
+  usageFilter,
+  onUsageFilterChange,
   onClearFilters,
   hasActiveFilters,
 }: TableFiltersProps) {
@@ -38,6 +42,21 @@ export default function TableFilters({
           <option value="exhausted">Exhausted</option>
         </select>
       </div>
+      {usageFilter && onUsageFilterChange && (
+        <div className="filter-group">
+          <select
+            value={usageFilter}
+            onChange={(e) =>
+              onUsageFilterChange(e.target.value as "all" | "used" | "unused")
+            }
+            className="filter-select"
+          >
+            <option value="all">All Codes</option>
+            <option value="used">Used (has signups)</option>
+            <option value="unused">Unused (no signups)</option>
+          </select>
+        </div>
+      )}
       {hasActiveFilters && (
         <button onClick={onClearFilters} className="clear-filters-button">
           Clear Filters

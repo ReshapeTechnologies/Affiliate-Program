@@ -1,5 +1,10 @@
-import { API_CONFIG, getAuthToken } from '../config/api';
-import type { BackendApiResponse, BackendReferral } from '../types/backend';
+import { API_CONFIG, getAuthToken } from "../config/api";
+
+type BackendApiResponse<T> = {
+  message: string;
+  success: boolean;
+  data: T;
+};
 
 /**
  * API Service for fetching referral data from backend
@@ -20,12 +25,12 @@ class ApiService {
     const token = getAuthToken();
 
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
       ...(options.headers as Record<string, string>),
     };
 
     if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+      headers["Authorization"] = `Bearer ${token}`;
     }
 
     const config: RequestInit = {
@@ -43,21 +48,9 @@ class ApiService {
       const data = await response.json();
       return data as T;
     } catch (error) {
-      console.error('API request failed:', error);
+      console.error("API request failed:", error);
       throw error;
     }
-  }
-
-  /**
-   * Get all admin referral codes (codes with no referrer)
-   */
-  async getAdminReferralCodes(): Promise<BackendApiResponse<BackendReferral[]>> {
-    return this.request<BackendApiResponse<BackendReferral[]>>(
-      '/get-admin-referralcode',
-      {
-        method: 'GET',
-      }
-    );
   }
 
   /**
@@ -70,7 +63,7 @@ class ApiService {
     return this.request<BackendApiResponse<any[]>>(
       `/get-referral-details?referralCode=${encodeURIComponent(referralCode)}`,
       {
-        method: 'GET',
+        method: "GET",
       }
     );
   }
@@ -85,11 +78,46 @@ class ApiService {
     return this.request<BackendApiResponse<{ userId: string; events: any[] }>>(
       `/get-purchasehistory?userId=${encodeURIComponent(userId)}`,
       {
-        method: 'GET',
+        method: "GET",
+      }
+    );
+  }
+
+  /**
+   * Get affiliate referral codes with stats
+   */
+  async getAffiliateReferralCodes(
+    affiliateUserId: string
+  ): Promise<BackendApiResponse<any[]>> {
+    return this.request<BackendApiResponse<any[]>>(
+      `/get-affiliate-referral-codes?affiliateUserId=${encodeURIComponent(
+        affiliateUserId
+      )}`,
+      {
+        method: "GET",
+      }
+    );
+  }
+
+  /**
+   * Get affiliate purchase history (full details)
+   */
+  async getAffiliatePurchaseHistory(
+    affiliateUserId: string,
+    referralCode?: string,
+    userId?: string
+  ): Promise<BackendApiResponse<any[]>> {
+    const params = new URLSearchParams({ affiliateUserId });
+    if (referralCode) params.append("referralCode", referralCode);
+    if (userId) params.append("userId", userId);
+
+    return this.request<BackendApiResponse<any[]>>(
+      `/get-affiliate-purchase-history?${params.toString()}`,
+      {
+        method: "GET",
       }
     );
   }
 }
 
 export const apiService = new ApiService();
-

@@ -1,4 +1,4 @@
-import type { EarningsBreakdown } from "./commission";
+import type { CommissionRule, EarningsBreakdown } from "./commission";
 
 export interface User {
   id: string;
@@ -17,6 +17,7 @@ export interface ReferralCode {
   createdAt: string;
   conversions: number; // trial + paid conversions
   status: ReferralStatus;
+  commissionConfig?: CommissionRule[];
   quota?: number | null;
   referralsCount: number;
   startDate?: string | null;
@@ -52,6 +53,7 @@ export interface DashboardStats {
 
 export interface TimeSeriesData {
   date: string;
+  signupConversions: number;
   conversions: number;
   trialConversions: number;
   paidConversions: number;

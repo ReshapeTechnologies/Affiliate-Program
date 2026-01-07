@@ -1,22 +1,30 @@
-import type { CommissionRate, EarningsBreakdown } from "../types/commission";
+import type { CommissionRule, EarningsBreakdown } from "../types/commission";
 
 /**
- * Calculate earnings for a referral code
+ * Calculate earnings for a referral code based on dynamic rules
  */
 export function calculateEarnings(
-  trialConversions: number,
-  paidConversions: number,
-  rates: CommissionRate
+  stats: Record<string, number>,
+  rules: CommissionRule[]
 ): EarningsBreakdown {
-  const fromTrials = trialConversions * rates.perTrialConversion;
-  const fromPaid = paidConversions * rates.perPaidConversion;
-  const total = fromTrials + fromPaid;
+  let total = 0;
+  const breakdown: Record<string, number> = {};
+  // Default currency to the first rule's currency or USD if no rules
+  let currency = rules.length > 0 ? rules[0].currency : "USD";
+
+  for (const rule of rules) {
+    const count = stats[rule.event] || 0;
+    const earnings = count * rule.rate;
+    breakdown[rule.event] = Number(earnings.toFixed(2));
+    total += earnings;
+    // Update currency to ensure it matches the rule (assuming single currency per code)
+    if (rule.currency) currency = rule.currency;
+  }
 
   return {
-    fromTrials: Number(fromTrials.toFixed(2)),
-    fromPaid: Number(fromPaid.toFixed(2)),
+    breakdown,
     total: Number(total.toFixed(2)),
-    currency: rates.currency,
+    currency,
   };
 }
 
@@ -24,31 +32,31 @@ export function calculateEarnings(
  * Calculate total earnings from multiple referral codes
  */
 export function calculateTotalEarnings(
-  codes: Array<{
-    trialConversions: number;
-    paidConversions: number;
-  }>,
-  rates: CommissionRate
+  codesResults: Array<{
+    stats: Record<string, number>;
+    rules: CommissionRule[];
+  }>
 ): EarningsBreakdown {
-  const totals = codes.reduce(
-    (acc, code) => {
-      acc.trial += code.trialConversions || 0;
-      acc.paid += code.paidConversions || 0;
-      return acc;
-    },
-    { trial: 0, paid: 0 }
-  );
+  // This is tricky if codes have different currencies.
+  // For now assuming same currency or just summing numbers (naive).
 
-  return calculateEarnings(totals.trial, totals.paid, rates);
+  const aggregateBreakdown: Record<string, number> = {};
+  let globalTotal = 0;
+  let globalCurrency = "USD";
+
+  for (const item of codesResults) {
+    const result = calculateEarnings(item.stats, item.rules);
+    globalTotal += result.total;
+    globalCurrency = result.currency;
+
+    for (const [event, amount] of Object.entries(result.breakdown)) {
+      aggregateBreakdown[event] = (aggregateBreakdown[event] || 0) + amount;
+    }
+  }
+
+  return {
+    breakdown: aggregateBreakdown,
+    total: Number(globalTotal.toFixed(2)),
+    currency: globalCurrency,
+  };
 }
-
-// /**
-//  * Calculate average earnings per conversion
-//  */
-// export function calculateAverageEarningsPerConversion(
-//   totalEarnings: number,
-//   totalConversions: number
-// ): number {
-//   if (totalConversions === 0) return 0;
-//   return Number((totalEarnings / totalConversions).toFixed(2));
-// }

@@ -72,10 +72,13 @@ export default function Dashboard({
                 stats.totalEarnings.currency
               )}
               subtitle={`${formatCurrency(
-                stats.totalEarnings.fromPaid,
+                stats.totalEarnings.breakdown["signup"] || 0,
+                stats.totalEarnings.currency
+              )} from signups · ${formatCurrency(
+                stats.totalEarnings.breakdown["purchase"] || 0,
                 stats.totalEarnings.currency
               )} from paid · ${formatCurrency(
-                stats.totalEarnings.fromTrials,
+                stats.totalEarnings.breakdown["free_trial"] || 0,
                 stats.totalEarnings.currency
               )} from free trials`}
               icon="💰"

@@ -3,13 +3,13 @@ import { apiService } from "../services/api";
 import { useFilters } from "../hooks/useFilters";
 import { formatCurrency } from "../config/commission";
 import { formatDateTime } from "../utils/dateUtils";
-import type { CommissionRate } from "../types/commission";
+import type { CommissionRule } from "../types/commission";
 import type { PurchaseEvent } from "../types/purchaseHistory";
 import LoadingSpinner from "./LoadingSpinner";
 import ErrorMessage from "./ErrorMessage";
 import PerformanceCharts from "./PerformanceCharts";
 import {
-  generateTimeSeriesWithDateRange,
+  buildTimeSeriesFromUsers,
   getEarliestEventDate,
 } from "../utils/timeSeries";
 
@@ -18,7 +18,7 @@ interface UserDetailViewProps {
   userName?: string;
   userEmail?: string;
   referralCode: string;
-  commissionRates: CommissionRate;
+  commissionConfig?: CommissionRule[];
   onClose: () => void;
 }
 
@@ -27,13 +27,15 @@ export default function UserDetailView({
   userName,
   userEmail,
   referralCode,
-  commissionRates,
+  commissionConfig,
   onClose,
 }: UserDetailViewProps) {
   const [events, setEvents] = useState<PurchaseEvent[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [eventTypeFilter, setEventTypeFilter] = useState<string>("all");
+  const [hasSignup, setHasSignup] = useState<boolean>(false);
+  const [signupDate, setSignupDate] = useState<string | null>(null);
 
   const {
     filteredItems: filteredEvents,
@@ -63,6 +65,12 @@ export default function UserDetailView({
           const userData = response.data.find(
             (user: any) => user.userId === userId
           );
+
+          // If the user exists in this referral code's referred users, treat that as a signup
+          setHasSignup(Boolean(userData));
+          // ONLY use referralCreatedAt (from ReferralSubSchema.createdAt) - no fallback
+          console.log("User signup date:", userData?.referralCreatedAt || null);
+          setSignupDate(userData?.referralCreatedAt || null);
 
           if (userData && userData.events) {
             const purchaseEvents = userData.events.filter(
@@ -129,39 +137,58 @@ export default function UserDetailView({
     }
   };
 
+  const commissionCurrency =
+    commissionConfig?.find((r) => r.currency)?.currency || "USD";
+
+  // Helper to determine commission rate (DB config only)
+  const getRateForEvent = (periodType: string | undefined): number => {
+    if (!commissionConfig || !commissionConfig.length) return 0;
+
+    if (periodType === "TRIAL") {
+      const rule = commissionConfig.find((r) => r.event === "free_trial");
+      return rule?.rate ?? 0;
+    }
+
+    if (periodType === "NORMAL") {
+      const rule = commissionConfig.find((r) => r.event === "purchase");
+      return rule?.rate ?? 0;
+    }
+
+    return 0;
+  };
+
+  const signupRate =
+    commissionConfig?.find((r) => r.event === "signup")?.rate ?? 0;
+
   // Calculate user earnings
   const userEarnings = events.reduce(
     (acc, event) => {
       if (event.type === "INITIAL_PURCHASE") {
+        const rate = getRateForEvent(event.period_type);
         if (event.period_type === "TRIAL") {
-          acc.fromTrials += commissionRates.perTrialConversion;
+          acc.fromTrials += rate;
         } else if (event.period_type === "NORMAL") {
-          acc.fromPaid += commissionRates.perPaidConversion;
+          acc.fromPaid += rate;
         }
       }
       return acc;
     },
     { fromTrials: 0, fromPaid: 0 }
   );
-  const totalEarnings = userEarnings.fromTrials + userEarnings.fromPaid;
 
-  // Generate time series data for this user
+  const signupEarnings = hasSignup ? signupRate : 0;
+  const totalEarnings =
+    signupEarnings + userEarnings.fromTrials + userEarnings.fromPaid;
+
+  // Generate time series data for this user using centralized helper
   const timeSeriesData = useMemo(() => {
-    const initialPurchases = events.filter(
-      (e) => e.type === "INITIAL_PURCHASE"
-    );
-    const earliestDate = getEarliestEventDate(initialPurchases);
-
-    if (!earliestDate) {
-      return [];
-    }
-
-    return generateTimeSeriesWithDateRange(
-      initialPurchases,
-      earliestDate,
-      new Date()
-    );
-  }, [events]);
+    // Build a single-user array for the centralized helper
+    const userForTimeSeries = {
+      referralCreatedAt: signupDate,
+      events: events,
+    };
+    return buildTimeSeriesFromUsers([userForTimeSeries]);
+  }, [events, signupDate]);
 
   if (loading) {
     return (
@@ -208,19 +235,14 @@ export default function UserDetailView({
               <p className="earnings-info">
                 <strong>Earnings Generated:</strong>{" "}
                 <span className="earnings-value">
-                  {formatCurrency(totalEarnings, commissionRates.currency)}
+                  {formatCurrency(totalEarnings, commissionCurrency)}
                 </span>{" "}
-                (
-                {formatCurrency(
-                  userEarnings.fromTrials,
-                  commissionRates.currency
-                )}{" "}
+                ({formatCurrency(signupEarnings, commissionCurrency)} from
+                signups,{" "}
+                {formatCurrency(userEarnings.fromTrials, commissionCurrency)}{" "}
                 from trials,{" "}
-                {formatCurrency(
-                  userEarnings.fromPaid,
-                  commissionRates.currency
-                )}{" "}
-                from paid)
+                {formatCurrency(userEarnings.fromPaid, commissionCurrency)} from
+                paid)
               </p>
             </div>
           </div>
@@ -266,9 +288,6 @@ export default function UserDetailView({
               >
                 <option value="all">All Events</option>
                 <option value="INITIAL_PURCHASE">Initial Purchase</option>
-                <option value="RENEWAL">Renewal</option>
-                <option value="CANCELLATION">Cancellation</option>
-                <option value="SUBSCRIPTION_PAUSED">Paused</option>
               </select>
             </div>
             <div className="filter-group">
@@ -355,8 +374,8 @@ export default function UserDetailView({
                               <p className="earnings-note">
                                 <strong>Earnings:</strong>{" "}
                                 {formatCurrency(
-                                  commissionRates.perTrialConversion,
-                                  commissionRates.currency
+                                  getRateForEvent("TRIAL"),
+                                  commissionCurrency
                                 )}
                               </p>
                             )}
@@ -364,8 +383,8 @@ export default function UserDetailView({
                               <p className="earnings-note">
                                 <strong>Earnings:</strong>{" "}
                                 {formatCurrency(
-                                  commissionRates.perPaidConversion,
-                                  commissionRates.currency
+                                  getRateForEvent("NORMAL"),
+                                  commissionCurrency
                                 )}
                               </p>
                             )}

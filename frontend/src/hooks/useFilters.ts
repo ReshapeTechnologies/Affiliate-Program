@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react';
-import type { SortConfig, SortDirection } from '../utils/filters';
-import { filterItems, sortItems, filterByDateRange } from '../utils/filters';
+import { useState, useMemo } from "react";
+import type { SortConfig } from "../utils/filters";
+import { filterItems, sortItems, filterByDateRange } from "../utils/filters";
 
 interface UseFiltersOptions<T> {
   searchKeys?: (keyof T)[];
@@ -8,7 +8,7 @@ interface UseFiltersOptions<T> {
 }
 
 export function useFilters<T>(items: T[], options: UseFiltersOptions<T> = {}) {
-  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState<string>("");
   const [sortConfig, setSortConfig] = useState<SortConfig<T> | null>(null);
   const [startDate, setStartDate] = useState<string | null>(null);
   const [endDate, setEndDate] = useState<string | null>(null);
@@ -32,22 +32,30 @@ export function useFilters<T>(items: T[], options: UseFiltersOptions<T> = {}) {
     }
 
     return result;
-  }, [items, searchTerm, sortConfig, startDate, endDate, options.searchKeys, options.dateKey]);
+  }, [
+    items,
+    searchTerm,
+    sortConfig,
+    startDate,
+    endDate,
+    options.searchKeys,
+    options.dateKey,
+  ]);
 
   const handleSort = (key: keyof T) => {
     setSortConfig((current) => {
       if (current?.key === key) {
         return {
           key,
-          direction: current.direction === 'asc' ? 'desc' : 'asc',
+          direction: current.direction === "asc" ? "desc" : "asc",
         };
       }
-      return { key, direction: 'asc' };
+      return { key, direction: "asc" };
     });
   };
 
   const clearFilters = () => {
-    setSearchTerm('');
+    setSearchTerm("");
     setSortConfig(null);
     setStartDate(null);
     setEndDate(null);
@@ -67,4 +75,3 @@ export function useFilters<T>(items: T[], options: UseFiltersOptions<T> = {}) {
     hasActiveFilters: !!(searchTerm || sortConfig || startDate || endDate),
   };
 }
-

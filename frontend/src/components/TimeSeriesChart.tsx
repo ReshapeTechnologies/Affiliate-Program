@@ -75,7 +75,11 @@ export default function TimeSeriesChart({
     const allTimeStart = getAllTimeStartDate();
     const initialStart = getDefaultStartDate();
 
-    if (allTimeStart && initialStart === allTimeStart && initialStart !== last30Start) {
+    if (
+      allTimeStart &&
+      initialStart === allTimeStart &&
+      initialStart !== last30Start
+    ) {
       return "all-time";
     }
     if (initialStart === last30Start) {
@@ -103,6 +107,31 @@ export default function TimeSeriesChart({
     ...item,
     dateFormatted: formatDate(item.date),
   }));
+
+  const integerTicks = useMemo(() => {
+    const maxValue = chartData.reduce((max, row) => {
+      const rowMax = config.lines.reduce((lineMax, line) => {
+        const value = row[line.dataKey];
+        return typeof value === "number" && Number.isFinite(value)
+          ? Math.max(lineMax, value)
+          : lineMax;
+      }, 0);
+      return Math.max(max, rowMax);
+    }, 0);
+
+    const roundedMax = Math.max(0, Math.ceil(maxValue));
+    if (roundedMax <= 1) return [0, 1];
+
+    let step = 1;
+    if (roundedMax > 10 && roundedMax <= 50) step = 5;
+    else if (roundedMax > 50 && roundedMax <= 100) step = 10;
+    else if (roundedMax > 100) step = Math.ceil(roundedMax / 10);
+
+    const ticks: number[] = [];
+    for (let v = 0; v <= roundedMax; v += step) ticks.push(v);
+    if (ticks[ticks.length - 1] !== roundedMax) ticks.push(roundedMax);
+    return ticks;
+  }, [chartData, config.lines]);
 
   const applyPreset = (nextPreset: PresetOption) => {
     if (nextPreset === "last-30") {
@@ -233,7 +262,12 @@ export default function TimeSeriesChart({
             tick={{ fontSize: 12 }}
             interval="preserveStartEnd"
           />
-          <YAxis tick={{ fontSize: 12 }} />
+          <YAxis
+            tick={{ fontSize: 12 }}
+            allowDecimals={false}
+            ticks={integerTicks}
+            domain={[0, "auto"]}
+          />
           <Tooltip />
           <Legend />
           {config.lines.map((line) => (

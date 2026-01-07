@@ -1,10 +1,11 @@
-import './App.css'
-import Dashboard from './components/Dashboard'
-import { useReferralData } from './hooks/useReferralData'
-import { mockUser } from './data/mockData'
+import "./App.css";
+import Dashboard from "./components/Dashboard";
+import { useReferralData } from "./hooks/useReferralData";
+import { mockUser } from "./data/mockData";
 
 function App() {
-  const { referralCodes, stats, timeSeriesData, loading, error, refetch } = useReferralData()
+  const { referralCodes, stats, timeSeriesData, loading, error, refetch } =
+    useReferralData();
 
   return (
     <Dashboard
@@ -16,7 +17,7 @@ function App() {
       error={error}
       onRetry={refetch}
     />
-  )
+  );
 }
 
-export default App
+export default App;

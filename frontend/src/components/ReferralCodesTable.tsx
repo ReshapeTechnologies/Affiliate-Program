@@ -1,11 +1,9 @@
 import { useState, useMemo } from "react";
 import type { ReferralCode } from "../types";
-import UserListModal from "./UserListModal";
 import ReferralCodeDetailView from "./ReferralCodeDetailView";
 import TableFilters from "./TableFilters";
 import { useToast } from "./ToastProvider";
 import { formatCurrency } from "../config/commission";
-import { getCommissionRates } from "../config/commission";
 import { filterItems, sortItems, toggleSortDirection } from "../utils/filters";
 import type { SortConfig } from "../utils/filters";
 
@@ -14,18 +12,17 @@ interface ReferralCodesTableProps {
 }
 
 export default function ReferralCodesTable({ codes }: ReferralCodesTableProps) {
-  const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [selectedCodeDetail, setSelectedCodeDetail] =
     useState<ReferralCode | null>(null);
-  const [users, setUsers] = useState<any[]>([]);
-  // const [loadingUsers, setLoadingUsers] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [usageFilter, setUsageFilter] = useState<"all" | "used" | "unused">(
+    "all"
+  );
   const [sortConfig, setSortConfig] = useState<SortConfig<ReferralCode> | null>(
     null
   );
   const { addToast } = useToast();
-  const commissionRates = getCommissionRates();
 
   // Filter and sort codes
   const filteredAndSortedCodes = useMemo(() => {
@@ -42,13 +39,21 @@ export default function ReferralCodesTable({ codes }: ReferralCodesTableProps) {
       result = result.filter((code) => code.status === statusFilter);
     }
 
+    // Apply usage filter (used = has signups/referrals)
+    if (usageFilter !== "all") {
+      result = result.filter((code) => {
+        const hasSignups = (code.referralsCount ?? 0) > 0;
+        return usageFilter === "used" ? hasSignups : !hasSignups;
+      });
+    }
+
     // Apply sorting
     if (sortConfig) {
       result = sortItems(result, sortConfig);
     }
 
     return result;
-  }, [codes, searchTerm, statusFilter, sortConfig]);
+  }, [codes, searchTerm, statusFilter, usageFilter, sortConfig]);
 
   const handleSort = (key: keyof ReferralCode) => {
     setSortConfig((current) => {
@@ -70,12 +75,14 @@ export default function ReferralCodesTable({ codes }: ReferralCodesTableProps) {
   const clearFilters = () => {
     setSearchTerm("");
     setStatusFilter("all");
+    setUsageFilter("all");
     setSortConfig(null);
   };
 
   const hasActiveFilters = !!(
     searchTerm ||
     statusFilter !== "all" ||
+    usageFilter !== "all" ||
     sortConfig
   );
 
@@ -122,6 +129,8 @@ export default function ReferralCodesTable({ codes }: ReferralCodesTableProps) {
           onSearchChange={setSearchTerm}
           statusFilter={statusFilter}
           onStatusFilterChange={setStatusFilter}
+          usageFilter={usageFilter}
+          onUsageFilterChange={setUsageFilter}
           onClearFilters={clearFilters}
           hasActiveFilters={hasActiveFilters}
         />
@@ -236,19 +245,7 @@ export default function ReferralCodesTable({ codes }: ReferralCodesTableProps) {
       {selectedCodeDetail && (
         <ReferralCodeDetailView
           referralCode={selectedCodeDetail}
-          commissionRates={commissionRates}
           onClose={() => setSelectedCodeDetail(null)}
-        />
-      )}
-
-      {selectedCode && !selectedCodeDetail && (
-        <UserListModal
-          referralCode={selectedCode}
-          users={users}
-          onClose={() => {
-            setSelectedCode(null);
-            setUsers([]);
-          }}
         />
       )}
     </div>

@@ -17,16 +17,16 @@ export default function PerformanceCharts({
   showDateRangeSelector = true,
 }: PerformanceChartsProps) {
   const chartConfig: TimeSeriesChartConfig = {
-    title: "Conversions Over Time",
+    title: "Signups, Trials & Purchases Over Time",
     defaultStartDate,
     defaultEndDate,
     showDateRangeSelector,
     height: 400,
     lines: [
       {
-        dataKey: "conversions",
-        name: "Total Conversions",
-        color: "#6366f1",
+        dataKey: "signupConversions",
+        name: "Signups",
+        color: "#3b82f6",
       },
       {
         dataKey: "trialConversions",
@@ -35,11 +35,12 @@ export default function PerformanceCharts({
       },
       {
         dataKey: "paidConversions",
-        name: "Paid",
+        name: "Purchases",
         color: "#f59e0b",
       },
     ],
   };
+  console.log("Rendering PerformanceCharts with data:", timeSeriesData);
 
   return (
     <div className="charts-section">
