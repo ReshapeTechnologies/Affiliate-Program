@@ -68,13 +68,7 @@ export default function Dashboard({
               />
               <Route
                 path="/analytics"
-                element={
-                  <AnalyticsView
-                    timeSeriesData={timeSeriesData}
-                    defaultStartDate={defaultChartStart}
-                    loading={loadingHistory}
-                  />
-                }
+                element={<ComingSoon />}
               />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
