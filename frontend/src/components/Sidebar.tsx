@@ -4,13 +4,19 @@ import { NavLink } from "react-router-dom";
 export default function Sidebar() {
   const navItems = [
     { icon: LayoutDashboard, label: "Home", path: "/" },
-    { icon: LineChart, label: "Analytics", path: "/analytics", disabled: true, comingSoon: true },
+    {
+      icon: LineChart,
+      label: "Analytics",
+      path: "/analytics",
+      disabled: true,
+      comingSoon: true,
+    },
   ];
 
   return (
     <aside className="w-64 bg-white border-r border-gray-200 min-h-screen flex flex-col">
-      <div className="h-16 flex items-center px-6 border-b border-gray-200">
-        <span className="text-xl font-bold text-indigo-600">Reshape</span>
+      <div className="flex items-center justify-center px-6 border-b border-gray-200 bg-black min-h-[90px]">
+        <img src="/Logo.png" alt="Reshape" className="h-10 object-contain" />
       </div>
 
       <nav className="flex-1 px-4 py-6 space-y-1">
