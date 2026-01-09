@@ -1,4 +1,4 @@
-import { API_CONFIG, getAuthToken } from "../config/api";
+import { API_CONFIG } from "../config/api";
 
 type BackendApiResponse<T> = {
   message: string;
@@ -29,16 +29,17 @@ class ApiService {
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`;
-    const token = getAuthToken();
+    // const token = getAuthToken();
+    // console.log(`API Request to ${url} with token: ${token}`);
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
       ...(options.headers as Record<string, string>),
     };
 
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
+    // if (token) {
+    //   headers["Authorization"] = `Bearer ${token}`;
+    // }
 
     const config: RequestInit = {
       ...options,
