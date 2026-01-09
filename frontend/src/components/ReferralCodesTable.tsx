@@ -30,7 +30,6 @@ export default function ReferralCodesTable({ codes }: ReferralCodesTableProps) {
   // Filter and sort codes
   const filteredAndSortedCodes = useMemo(() => {
     let result = [...codes];
-    console.log("Codes before filtering:", result);
 
     // Apply search filter
     if (searchTerm) {

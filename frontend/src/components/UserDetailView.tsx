@@ -69,7 +69,6 @@ export default function UserDetailView({
           // If the user exists in this referral code's referred users, treat that as a signup
           setHasSignup(Boolean(userData));
           // ONLY use referralCreatedAt (from ReferralSubSchema.createdAt) - no fallback
-          console.log("User signup date:", userData?.referralCreatedAt || null);
           setSignupDate(userData?.referralCreatedAt || null);
 
           if (userData && userData.events) {

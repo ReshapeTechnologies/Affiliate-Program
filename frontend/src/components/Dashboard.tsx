@@ -21,6 +21,7 @@ interface DashboardProps {
   loading?: boolean;
   error?: string | null;
   onRetry?: () => void;
+  onLogout?: () => void;
 }
 
 export default function Dashboard({
@@ -31,6 +32,7 @@ export default function Dashboard({
   loading = false,
   error = null,
   onRetry,
+  onLogout,
 }: DashboardProps) {
   const earliestStartDate = getEarliestStartDate(referralCodes);
   const defaultChartStart =
@@ -47,7 +49,7 @@ export default function Dashboard({
 
   return (
     <div className="dashboard">
-      <Header user={user} />
+      <Header user={user} onLogout={onLogout} />
       <main className="dashboard-main">
         <div className="dashboard-content">
           {/* Stats Cards */}
@@ -56,14 +58,12 @@ export default function Dashboard({
               title="Total Referral Codes"
               value={stats.totalReferralCodes}
               subtitle={`${stats.inactiveReferralCodes} inactive · ${stats.activeReferralCodes} active · ${stats.exhaustedReferralCodes} exhausted`}
-              icon="📋"
             />
 
             <StatsCard
               title="Total Conversions"
               value={stats.totalConversions.toLocaleString()}
               subtitle={`${stats.signupConversions.toLocaleString()} signups · ${stats.trialConversions.toLocaleString()} trial · ${stats.paidConversions.toLocaleString()} paid`}
-              icon="✅"
             />
             <StatsCard
               title="Total Earnings"
@@ -81,7 +81,6 @@ export default function Dashboard({
                 stats.totalEarnings.breakdown["purchase"] || 0,
                 stats.totalEarnings.currency
               )} from paid`}
-              icon="💰"
             />
           </div>
 

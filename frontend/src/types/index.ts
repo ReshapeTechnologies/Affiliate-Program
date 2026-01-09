@@ -4,7 +4,6 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: "affiliate" | "influencer";
   avatar?: string;
   createdAt?: string; // User's joining/registration date
 }
@@ -27,16 +26,6 @@ export interface ReferralCode {
   trialConversions?: number;
   paidConversions?: number;
   earnings?: EarningsBreakdown; // Calculated earnings for this code
-}
-
-export interface ReferralEvent {
-  id: string;
-  referralCodeId: string;
-  type: "click" | "conversion" | "signup";
-  timestamp: string;
-  userAgent?: string;
-  ip?: string;
-  revenue?: number;
 }
 
 export interface DashboardStats {

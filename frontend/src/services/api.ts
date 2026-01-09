@@ -6,6 +6,13 @@ type BackendApiResponse<T> = {
   data: T;
 };
 
+type AuthResponse = {
+  success: boolean;
+  message?: string;
+  name?: string;
+  email?: string;
+};
+
 /**
  * API Service for fetching referral data from backend
  */
@@ -36,13 +43,23 @@ class ApiService {
     const config: RequestInit = {
       ...options,
       headers,
+      credentials: "include", // Send HttpOnly cookies with requests
     };
 
     try {
       const response = await fetch(url, config);
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        let errorMessage = `HTTP error! status: ${response.status}`;
+        try {
+          const errorData = await response.json();
+          if (errorData && errorData.message) {
+            errorMessage = errorData.message;
+          }
+        } catch (e) {
+          // Ignore JSON parse errors, use default message
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -85,14 +102,11 @@ class ApiService {
 
   /**
    * Get affiliate referral codes with stats
+   * Now uses JWT authentication - no affiliateUserId needed
    */
-  async getAffiliateReferralCodes(
-    affiliateUserId: string
-  ): Promise<BackendApiResponse<any[]>> {
+  async getAffiliateReferralCodes(): Promise<BackendApiResponse<any[]>> {
     return this.request<BackendApiResponse<any[]>>(
-      `/get-affiliate-referral-codes?affiliateUserId=${encodeURIComponent(
-        affiliateUserId
-      )}`,
+      `/get-affiliate-referral-codes`,
       {
         method: "GET",
       }
@@ -101,13 +115,15 @@ class ApiService {
 
   /**
    * Get affiliate purchase history (full details)
+   * Uses JWT authentication - affiliateUserId is optional (overridden by server for non-admins)
    */
   async getAffiliatePurchaseHistory(
-    affiliateUserId: string,
+    affiliateUserId?: string,
     referralCode?: string,
     userId?: string
   ): Promise<BackendApiResponse<any[]>> {
-    const params = new URLSearchParams({ affiliateUserId });
+    const params = new URLSearchParams();
+    if (affiliateUserId) params.append("affiliateUserId", affiliateUserId);
     if (referralCode) params.append("referralCode", referralCode);
     if (userId) params.append("userId", userId);
 
@@ -117,6 +133,41 @@ class ApiService {
         method: "GET",
       }
     );
+  }
+
+  // ============================================
+  // AUTHENTICATION APIs
+  // ============================================
+
+  /**
+   * Login as affiliate user
+   * Sets HttpOnly cookie on success
+   */
+  async affiliateLogin(email: string, password: string): Promise<AuthResponse> {
+    return this.request<AuthResponse>("/affiliate-login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    });
+  }
+
+  /**
+   * Logout affiliate user
+   * Clears HttpOnly cookie
+   */
+  async affiliateLogout(): Promise<AuthResponse> {
+    return this.request<AuthResponse>("/affiliate-logout", {
+      method: "POST",
+    });
+  }
+
+  /**
+   * Get current authenticated user info
+   * Validates JWT from HttpOnly cookie
+   */
+  async getAffiliateUser(): Promise<AuthResponse> {
+    return this.request<AuthResponse>("/get-affiliate-user", {
+      method: "GET",
+    });
   }
 }
 

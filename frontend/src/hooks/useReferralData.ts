@@ -17,7 +17,9 @@ interface UseReferralDataReturn {
   refetch: () => Promise<void>;
 }
 
-export function useReferralData(): UseReferralDataReturn {
+export function useReferralData(
+  isAuthenticated: boolean = true
+): UseReferralDataReturn {
   const [referralCodes, setReferralCodes] = useState<ReferralCode[]>([]);
   const [stats, setStats] = useState<DashboardStats>(() =>
     createEmptyDashboardStats("USD")
@@ -31,8 +33,8 @@ export function useReferralData(): UseReferralDataReturn {
       setLoading(true);
       setError(null);
 
-      // Use system/null identifier to fetch system-level codes (existing logic)
-      const response = await apiService.getAffiliateReferralCodes("system");
+      // Fetch referral codes using JWT authentication (no affiliateUserId needed)
+      const response = await apiService.getAffiliateReferralCodes();
 
       if (response.success && response.data) {
         // Transform backend data to frontend format (with earnings calculation)
@@ -47,7 +49,6 @@ export function useReferralData(): UseReferralDataReturn {
           events?: any[];
         }> = [];
 
-        // We fetch history for "system" (null affiliate) to match the codes above.
         try {
           const historyResponse = await apiService.getAffiliatePurchaseHistory(
             "system"
@@ -95,8 +96,10 @@ export function useReferralData(): UseReferralDataReturn {
   };
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (isAuthenticated) {
+      fetchData();
+    }
+  }, [isAuthenticated]);
 
   return {
     referralCodes,

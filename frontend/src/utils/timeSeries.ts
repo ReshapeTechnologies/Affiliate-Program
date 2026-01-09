@@ -73,10 +73,26 @@ export function generateTimeSeriesFromEvents(
       dayData.conversions++;
 
       if (event.period_type === "TRIAL") {
+        console.log(
+          `[generateTimeSeriesFromEvents] event[{index}] counted as TRIAL`
+        );
         dayData.trialConversions++;
       } else if (event.period_type === "NORMAL") {
+        console.log(
+          `[generateTimeSeriesFromEvents] event[{index}] counted as PAID`
+        );
         dayData.paidConversions++;
+      } else {
+        console.log(
+          `[generateTimeSeriesFromEvents] event[{index}] has UNKNOWN period_type:`,
+          event.period_type
+        );
       }
+    } else {
+      console.log(
+        `[generateTimeSeriesFromEvents] event[{index}] SKIPPED - not INITIAL_PURCHASE, type was:`,
+        event.type
+      );
     }
   });
 
@@ -90,6 +106,21 @@ export function generateTimeSeriesFromEvents(
       paidConversions: values.paidConversions,
     }))
     .sort((a, b) => a.date.localeCompare(b.date));
+
+  console.log(
+    "[generateTimeSeriesFromEvents] RESULT:",
+    data.length,
+    "data points"
+  );
+  const totals = data.reduce(
+    (acc, d) => ({
+      trial: acc.trial + d.trialConversions,
+      paid: acc.paid + d.paidConversions,
+      signup: acc.signup + d.signupConversions,
+    }),
+    { trial: 0, paid: 0, signup: 0 }
+  );
+  console.log("[generateTimeSeriesFromEvents] TOTALS:", totals);
 
   return data;
 }
@@ -221,7 +252,16 @@ export function generateTimeSeriesWithDateRange(
   });
 
   // Process events and update dates
-  events.forEach((event) => {
+  events.forEach((event, index) => {
+    console.log(
+      `[generateTimeSeriesWithDateRange] Processing event[${index}]:`,
+      {
+        type: event.type,
+        period_type: event.period_type,
+        purchased_at_ms: event.purchased_at_ms,
+      }
+    );
+
     if (event.type === "INITIAL_PURCHASE") {
       const eventDate = new Date(event.purchased_at_ms);
       const dateKey = eventDate.toISOString().split("T")[0];
@@ -231,16 +271,27 @@ export function generateTimeSeriesWithDateRange(
         dayData.conversions++;
 
         if (event.period_type === "TRIAL") {
+          console.log(
+            `[generateTimeSeriesWithDateRange] event[${index}] counted as TRIAL`
+          );
           dayData.trialConversions++;
         } else if (event.period_type === "NORMAL") {
+          console.log(
+            `[generateTimeSeriesWithDateRange] event[${index}] counted as PAID`
+          );
           dayData.paidConversions++;
+        } else {
+          console.log(
+            `[generateTimeSeriesWithDateRange] event[${index}] has UNKNOWN period_type:`,
+            event.period_type
+          );
         }
       }
     }
   });
 
   // Convert to array and sort
-  return Array.from(dateMap.entries())
+  const result = Array.from(dateMap.entries())
     .map(([date, values]) => ({
       date,
       signupConversions: values.signupConversions,
@@ -249,6 +300,18 @@ export function generateTimeSeriesWithDateRange(
       paidConversions: values.paidConversions,
     }))
     .sort((a, b) => a.date.localeCompare(b.date));
+
+  const totals = result.reduce(
+    (acc, d) => ({
+      trial: acc.trial + d.trialConversions,
+      paid: acc.paid + d.paidConversions,
+      signup: acc.signup + d.signupConversions,
+    }),
+    { trial: 0, paid: 0, signup: 0 }
+  );
+  console.log("[generateTimeSeriesWithDateRange] TOTALS:", totals);
+
+  return result;
 }
 
 /**
@@ -313,12 +376,9 @@ export function extractSignupDates(
     // ONLY use referralCreatedAt - no fallback
     if (user?.referralCreatedAt) {
       signupDates.push(user.referralCreatedAt);
-      console.log("Added signup date:", user.referralCreatedAt);
     } else {
-      console.log("No referralCreatedAt for user, skipping signup date.");
     }
   });
-  console.log("Extracted signup dates:", signupDates);
   return signupDates;
 }
 
@@ -331,9 +391,10 @@ export function extractPurchaseEvents(
   users: UserWithEvents[]
 ): PurchaseEvent[] {
   const allEvents: PurchaseEvent[] = [];
-  users.forEach((user) => {
+
+  users.forEach((user, userIndex) => {
     if (user?.events && Array.isArray(user.events)) {
-      user.events.forEach((event) => {
+      user.events.forEach((event, eventIndex) => {
         if (
           event &&
           event.type === "INITIAL_PURCHASE" &&
@@ -342,8 +403,10 @@ export function extractPurchaseEvents(
           allEvents.push(event as PurchaseEvent);
         }
       });
+    } else {
     }
   });
+
   return allEvents;
 }
 

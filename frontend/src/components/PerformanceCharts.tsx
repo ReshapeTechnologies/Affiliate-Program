@@ -40,7 +40,6 @@ export default function PerformanceCharts({
       },
     ],
   };
-  console.log("Rendering PerformanceCharts with data:", timeSeriesData);
 
   return (
     <div className="charts-section">
