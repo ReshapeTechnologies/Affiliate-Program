@@ -21,6 +21,8 @@ export function createEmptyDashboardStats(
     totalConversions: 0,
     totalReferrals: 0,
     signupConversions: 0,
+    eventStats: {},
+    // Legacy fields for backward compatibility
     trialConversions: 0,
     paidConversions: 0,
     totalEarnings: {
@@ -44,13 +46,28 @@ export function transformReferralCode(
     : null;
   const quota = typeof backendRef.quota === "number" ? backendRef.quota : null;
 
-  // Use stats from backend
-  const referralsCount = backendRef.stats?.totalReferrals ?? 0;
+  // Use stats from backend - now dynamic
+  // Extract totalReferrals and treat the rest as event stats
+  const { totalReferrals, ...restStats } = backendRef.stats || {};
+
+  const referralsCount = totalReferrals ?? 0;
   const signupConversions = referralsCount; // signups = referrals count
-  const trialConversions = backendRef.stats?.free_trial ?? 0;
-  const paidConversions = backendRef.stats?.purchase ?? 0;
-  // Total conversions = signup + free_trial + paid
-  const conversions = signupConversions + trialConversions + paidConversions;
+
+  // Get eventStats from backend (dynamic event counts)
+  const eventStats: Record<string, number> = restStats || {};
+
+  // Legacy fields for backward compatibility
+  const trialConversions =
+    eventStats["free_trial"] ?? backendRef.stats?.free_trial ?? 0;
+  const paidConversions =
+    eventStats["purchase"] ?? backendRef.stats?.purchase ?? 0;
+
+  // Total conversions = signup + sum of all event stats
+  const eventConversions = Object.values(eventStats).reduce(
+    (sum, count) => sum + count,
+    0
+  );
+  const conversions = signupConversions + eventConversions;
   const usageCount = Math.max(conversions, referralsCount);
 
   // Determine status based on dates
@@ -66,12 +83,10 @@ export function transformReferralCode(
   }
 
   // Calculate earnings using dynamic rules from the code itself
-  // Map our stats keys to the event names expected in rules
-  const earningsStats = {
-    // Signup earnings are derived from total referrals (each referral implies a signup)
+  // Build stats object from eventStats + signups
+  const earningsStats: Record<string, number> = {
     signup: referralsCount,
-    free_trial: trialConversions,
-    purchase: paidConversions,
+    ...eventStats,
   };
 
   const earnings = calculateEarnings(
@@ -93,6 +108,8 @@ export function transformReferralCode(
     startDate: backendRef.startDate || null,
     endDate: backendRef.endDate || null,
     durationDays: backendRef.noOfDays,
+    eventStats,
+    // Legacy fields
     trialConversions,
     paidConversions,
     earnings,
@@ -122,9 +139,18 @@ export function calculateDashboardStats(
   const totals = referralCodes.reduce((acc, code) => {
     acc.totalConversions += code.conversions || 0;
     acc.signupConversions += code.signupConversions || 0;
+    acc.totalReferrals += code.referralsCount || 0;
+
+    // Aggregate dynamic eventStats
+    if (code.eventStats) {
+      for (const [event, count] of Object.entries(code.eventStats)) {
+        acc.eventStats![event] = (acc.eventStats![event] || 0) + count;
+      }
+    }
+
+    // Legacy fields for backward compatibility
     acc.trialConversions += code.trialConversions || 0;
     acc.paidConversions += code.paidConversions || 0;
-    acc.totalReferrals += code.referralsCount || 0;
 
     if (code.status === "active") {
       acc.activeReferralCodes += 1;
@@ -156,6 +182,7 @@ export function calculateDashboardStats(
     totalConversions: totals.totalConversions,
     totalReferrals: totals.totalReferrals,
     signupConversions: totals.signupConversions,
+    eventStats: totals.eventStats,
     trialConversions: totals.trialConversions,
     paidConversions: totals.paidConversions,
     totalEarnings: {

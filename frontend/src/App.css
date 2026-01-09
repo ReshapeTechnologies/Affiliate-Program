@@ -509,6 +509,25 @@
   background-color: #f7fafc;
 }
 
+/* Event columns - dynamic columns based on commission config */
+.referral-codes-table th.event-column {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  color: #0369a1;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  min-width: 100px;
+}
+
+.referral-codes-table td.event-cell {
+  text-align: center;
+  font-weight: 500;
+  color: #374151;
+}
+
+.referral-codes-table td.event-cell:has(:not(:empty)) {
+  color: #059669;
+}
+
 .code-cell {
   display: flex;
   align-items: center;
@@ -1477,8 +1496,8 @@
   cursor: pointer;
   font-size: 14px;
   font-weight: 600;
-  transition: transform 0.15s ease, box-shadow 0.2s ease,
-    border-color 0.2s ease, background-color 0.2s ease;
+  transition: transform 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease,
+    background-color 0.2s ease;
   box-shadow: 0 4px 12px rgba(220, 38, 38, 0.08);
 }
 

@@ -1,5 +1,5 @@
 import type { TimeSeriesData } from "../types";
-import type { PurchaseEvent } from "../types/purchaseHistory";
+import type { NormalizedEvent, PurchaseEvent } from "../types/commission";
 
 function toDateKey(value: unknown): string | null {
   if (!value) return null;
@@ -54,7 +54,7 @@ export function generateTimeSeriesFromEvents(
 
   // Process all events and group by date
   events.forEach((event) => {
-    if (event.type === "INITIAL_PURCHASE") {
+    if (event.type === "INITIAL_PURCHASE" && event.purchased_at_ms) {
       // Convert timestamp to date string (YYYY-MM-DD)
       const eventDate = new Date(event.purchased_at_ms);
       const dateKey = eventDate.toISOString().split("T")[0];
@@ -168,7 +168,7 @@ export function generateTimeSeriesWithFilledDates(
 
   // Process events and update dates
   events.forEach((event) => {
-    if (event.type === "INITIAL_PURCHASE") {
+    if (event.type === "INITIAL_PURCHASE" && event.purchased_at_ms) {
       const eventDate = new Date(event.purchased_at_ms);
       const dateKey = eventDate.toISOString().split("T")[0];
 
@@ -262,7 +262,7 @@ export function generateTimeSeriesWithDateRange(
       }
     );
 
-    if (event.type === "INITIAL_PURCHASE") {
+    if (event.type === "INITIAL_PURCHASE" && event.purchased_at_ms) {
       const eventDate = new Date(event.purchased_at_ms);
       const dateKey = eventDate.toISOString().split("T")[0];
 
@@ -323,7 +323,10 @@ export function getEarliestEventDate(events: PurchaseEvent[]): string | null {
   if (events.length === 0) return null;
 
   const timestamps = events
-    .filter((e) => e.type === "INITIAL_PURCHASE" && e.purchased_at_ms)
+    .filter(
+      (e): e is PurchaseEvent & { purchased_at_ms: number } =>
+        e.type === "INITIAL_PURCHASE" && typeof e.purchased_at_ms === "number"
+    )
     .map((e) => e.purchased_at_ms);
 
   if (timestamps.length === 0) return null;
@@ -392,9 +395,9 @@ export function extractPurchaseEvents(
 ): PurchaseEvent[] {
   const allEvents: PurchaseEvent[] = [];
 
-  users.forEach((user, userIndex) => {
+  users.forEach((user) => {
     if (user?.events && Array.isArray(user.events)) {
-      user.events.forEach((event, eventIndex) => {
+      user.events.forEach((event) => {
         if (
           event &&
           event.type === "INITIAL_PURCHASE" &&
@@ -403,7 +406,6 @@ export function extractPurchaseEvents(
           allEvents.push(event as PurchaseEvent);
         }
       });
-    } else {
     }
   });
 
@@ -465,4 +467,211 @@ export function buildTimeSeriesFromUsers(
     endDateKey,
     signupDates
   );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NEW: Dynamic Event Support with NormalizedEvent
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Time series data point with dynamic event counts
+ */
+export interface DynamicTimeSeriesData {
+  date: string;
+  signupConversions: number;
+  eventCounts: Record<string, number>; // e.g. { free_trial: 2, purchase: 1, 3_meals_logged: 5 }
+  // Legacy fields for backward compatibility with charts
+  trialConversions: number;
+  paidConversions: number;
+}
+
+/**
+ * Generate time series from NormalizedEvent array with dynamic event types
+ * @param events - Array of normalized events (from backend)
+ * @param eventTypes - Array of event types to track (e.g., from commissionConfig)
+ * @param startDate - Start date
+ * @param endDate - End date
+ * @param signupDates - Optional array of signup dates
+ * @returns Time series data with dynamic event counts
+ */
+export function generateDynamicTimeSeries(
+  events: NormalizedEvent[],
+  eventTypes: string[],
+  startDate: string | Date,
+  endDate?: string | Date,
+  signupDates?: Array<string | Date | number | null | undefined>
+): DynamicTimeSeriesData[] {
+  const start = typeof startDate === "string" ? new Date(startDate) : startDate;
+  const end = endDate
+    ? typeof endDate === "string"
+      ? new Date(endDate)
+      : endDate
+    : new Date();
+
+  // Initialize date map with all event types set to 0
+  const dateMap = new Map<
+    string,
+    {
+      signupConversions: number;
+      eventCounts: Record<string, number>;
+    }
+  >();
+
+  const initEventCounts = (): Record<string, number> => {
+    const counts: Record<string, number> = {};
+    eventTypes.forEach((type) => {
+      counts[type] = 0;
+    });
+    return counts;
+  };
+
+  // Initialize all dates in range
+  const currentDate = new Date(start);
+  while (currentDate <= end) {
+    const dateKey = currentDate.toISOString().split("T")[0];
+    dateMap.set(dateKey, {
+      signupConversions: 0,
+      eventCounts: initEventCounts(),
+    });
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+
+  // Process signups
+  (signupDates || []).forEach((signupDate) => {
+    const dateKey = toDateKey(signupDate);
+    if (!dateKey || !dateMap.has(dateKey)) return;
+    dateMap.get(dateKey)!.signupConversions++;
+  });
+
+  // Process normalized events
+  events.forEach((event) => {
+    const dateKey = toDateKey(event.date);
+    if (!dateKey || !dateMap.has(dateKey)) return;
+
+    const dayData = dateMap.get(dateKey)!;
+    const eventType = event.type;
+
+    // Only count if it's in our tracked event types
+    if (eventTypes.includes(eventType)) {
+      dayData.eventCounts[eventType] =
+        (dayData.eventCounts[eventType] || 0) + 1;
+    }
+  });
+
+  // Convert to array with legacy fields for backward compatibility
+  return Array.from(dateMap.entries())
+    .map(([date, values]) => ({
+      date,
+      signupConversions: values.signupConversions,
+      eventCounts: values.eventCounts,
+      // Legacy fields: map common event types to old field names
+      trialConversions: values.eventCounts["free_trial"] || 0,
+      paidConversions: values.eventCounts["purchase"] || 0,
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/**
+ * Get earliest date from normalized events
+ */
+export function getEarliestNormalizedEventDate(
+  events: NormalizedEvent[]
+): string | null {
+  const validDates = events
+    .map((e) => toDateKey(e.date))
+    .filter((d): d is string => d !== null)
+    .sort((a, b) => a.localeCompare(b));
+
+  return validDates.length > 0 ? validDates[0] : null;
+}
+
+/**
+ * User shape with normalized events for time series generation
+ */
+interface UserWithNormalizedEvents {
+  referralCreatedAt?: string | Date | number | null;
+  events?: NormalizedEvent[];
+}
+
+/**
+ * Build dynamic time series from users with normalized events
+ * @param users - Array of users with normalized events
+ * @param eventTypes - Event types to track (from commissionConfig)
+ * @param startDate - Optional start date override
+ * @param endDate - Optional end date override
+ */
+export function buildDynamicTimeSeriesFromUsers(
+  users: UserWithNormalizedEvents[],
+  eventTypes: string[],
+  startDate?: string | Date | null,
+  endDate?: string | Date | null
+): DynamicTimeSeriesData[] {
+  // Extract signup dates (only from referralCreatedAt)
+  const signupDates: Array<string | Date | number> = [];
+  users.forEach((user) => {
+    if (user?.referralCreatedAt) {
+      signupDates.push(user.referralCreatedAt);
+    }
+  });
+
+  // Flatten all events from users
+  const allEvents: NormalizedEvent[] = [];
+  users.forEach((user) => {
+    if (user?.events && Array.isArray(user.events)) {
+      allEvents.push(...user.events);
+    }
+  });
+
+  // Determine start date
+  let startDateKey: string = "";
+
+  if (startDate) {
+    startDateKey = toDateKey(startDate) ?? "";
+  }
+
+  if (!startDateKey && signupDates.length > 0) {
+    startDateKey = getEarliestSignupDate(signupDates) ?? "";
+  }
+
+  if (!startDateKey && allEvents.length > 0) {
+    startDateKey = getEarliestNormalizedEventDate(allEvents) ?? "";
+  }
+
+  if (!startDateKey) {
+    const fallback = new Date();
+    fallback.setDate(fallback.getDate() - 29);
+    startDateKey = fallback.toISOString().split("T")[0];
+  }
+
+  const endDateKey =
+    toDateKey(endDate) ?? new Date().toISOString().split("T")[0];
+
+  return generateDynamicTimeSeries(
+    allEvents,
+    eventTypes,
+    startDateKey,
+    endDateKey,
+    signupDates
+  );
+}
+
+/**
+ * Convert legacy PurchaseEvent array to NormalizedEvent array
+ * Useful for migrating existing code that still uses PurchaseEvent
+ */
+export function convertToNormalizedEvents(
+  events: PurchaseEvent[]
+): NormalizedEvent[] {
+  return events
+    .filter((e) => e.type === "INITIAL_PURCHASE" && e.purchased_at_ms)
+    .map((event) => {
+      // Map TRIAL -> free_trial, NORMAL -> purchase
+      const type = event.period_type === "TRIAL" ? "free_trial" : "purchase";
+      return {
+        type,
+        source: "purchase" as const,
+        date: new Date(event.purchased_at_ms!).toISOString(),
+        raw: event,
+      };
+    });
 }

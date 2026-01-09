@@ -24,6 +24,33 @@ interface User {
   events?: any[];
 }
 
+/**
+ * Format event type for display (e.g., "free_trial" -> "Free Trial")
+ * This is a fallback when display_name is not available
+ */
+function formatEventType(eventType: string): string {
+  return eventType
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+/**
+ * Get display name for an event type, using commission config display_name if available
+ */
+function getEventDisplayName(
+  eventType: string,
+  commissionConfig?: Array<{ event: string; display_name?: string }>
+): string {
+  // Try to find display_name from commission config
+  const config = commissionConfig?.find((c) => c.event === eventType);
+  if (config?.display_name) {
+    return config.display_name;
+  }
+  // Fallback to formatted event type
+  return formatEventType(eventType);
+}
+
 export default function ReferralCodeDetailView({
   referralCode,
   onClose,
@@ -165,23 +192,45 @@ export default function ReferralCodeDetailView({
                 <span className="stat-value">{referralCode.conversions}</span>
               </div>
               <div className="stat-item">
-                <span className="stat-label">Signups:</span>
+                <span className="stat-label">Referrals:</span>
                 <span className="stat-value">
-                  {referralCode.signupConversions || 0}
+                  {referralCode.referralsCount || 0}
                 </span>
               </div>
-              <div className="stat-item">
-                <span className="stat-label">Trial:</span>
-                <span className="stat-value">
-                  {referralCode.trialConversions || 0}
-                </span>
-              </div>
-              <div className="stat-item">
-                <span className="stat-label">Paid:</span>
-                <span className="stat-value">
-                  {referralCode.paidConversions || 0}
-                </span>
-              </div>
+              {/* Dynamic event stats from eventStats (skip "signup" - same as referrals) */}
+              {referralCode.eventStats &&
+                Object.entries(referralCode.eventStats)
+                  .filter(([eventType]) => eventType.toLowerCase() !== "signup")
+                  .map(([eventType, count]) => (
+                    <div className="stat-item" key={eventType}>
+                      <span className="stat-label">
+                        {getEventDisplayName(
+                          eventType,
+                          referralCode.commissionConfig
+                        )}
+                        :
+                      </span>
+                      <span className="stat-value">{count}</span>
+                    </div>
+                  ))}
+              {/* Fallback to legacy fields if no eventStats */}
+              {(!referralCode.eventStats ||
+                Object.keys(referralCode.eventStats).length === 0) && (
+                <>
+                  <div className="stat-item">
+                    <span className="stat-label">Trial:</span>
+                    <span className="stat-value">
+                      {referralCode.trialConversions || 0}
+                    </span>
+                  </div>
+                  <div className="stat-item">
+                    <span className="stat-label">Paid:</span>
+                    <span className="stat-value">
+                      {referralCode.paidConversions || 0}
+                    </span>
+                  </div>
+                </>
+              )}
               <div className="stat-item earnings-stat">
                 <span className="stat-label">Total Earnings:</span>
                 <span className="stat-value earnings">
@@ -197,14 +246,8 @@ export default function ReferralCodeDetailView({
                   <div className="rates-list">
                     {referralCode.commissionConfig.map((rule, index) => (
                       <span key={index} className="rate-badge">
-                        {rule.event === "free_trial"
-                          ? "Free Trial"
-                          : rule.event === "purchase"
-                          ? "Purchase"
-                          : rule.event === "signup"
-                          ? "Signup"
-                          : rule.event}
-                        : {formatCurrency(rule.rate, rule.currency)}
+                        {rule.display_name || formatEventType(rule.event)}:{" "}
+                        {formatCurrency(rule.rate, rule.currency)}
                       </span>
                     ))}
                   </div>
@@ -271,7 +314,6 @@ export default function ReferralCodeDetailView({
                       User ID {getSortIcon("userId")}
                     </th>
                     <th>Events</th>
-                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>

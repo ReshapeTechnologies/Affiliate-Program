@@ -11,6 +11,53 @@ interface ReferralCodesTableProps {
   codes: ReferralCode[];
 }
 
+/** Event column metadata for dynamic rendering */
+interface EventColumn {
+  eventName: string;
+  displayName: string;
+}
+
+/**
+ * Format event name for display (fallback when no display_name available)
+ * e.g., "3_meals_logged" -> "3 Meals Logged"
+ */
+function formatEventName(eventName: string): string {
+  return eventName
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+/**
+ * Build union of all event columns from all referral codes' commission configs
+ * Returns array of unique events with their display names
+ * Note: Excludes "signup" since Referrals column already shows that count
+ */
+function buildEventColumns(codes: ReferralCode[]): EventColumn[] {
+  const eventMap = new Map<string, string>(); // eventName -> displayName
+
+  for (const code of codes) {
+    for (const config of code.commissionConfig || []) {
+      // Skip "signup" event - it's the same as referrals count
+      if (
+        config.event &&
+        config.event.toLowerCase() !== "signup" &&
+        !eventMap.has(config.event)
+      ) {
+        eventMap.set(
+          config.event,
+          config.display_name || formatEventName(config.event)
+        );
+      }
+    }
+  }
+
+  // Convert to array and sort for consistent ordering
+  return Array.from(eventMap.entries())
+    .map(([eventName, displayName]) => ({ eventName, displayName }))
+    .sort((a, b) => a.displayName.localeCompare(b.displayName));
+}
+
 export default function ReferralCodesTable({ codes }: ReferralCodesTableProps) {
   const [selectedCodeDetail, setSelectedCodeDetail] =
     useState<ReferralCode | null>(null);
@@ -26,6 +73,9 @@ export default function ReferralCodesTable({ codes }: ReferralCodesTableProps) {
     null
   );
   const { addToast } = useToast();
+
+  // Build dynamic event columns from all codes' commission configs (union)
+  const eventColumns = useMemo(() => buildEventColumns(codes), [codes]);
 
   // Filter and sort codes
   const filteredAndSortedCodes = useMemo(() => {
@@ -140,6 +190,9 @@ export default function ReferralCodesTable({ codes }: ReferralCodesTableProps) {
     }
   };
 
+  // Calculate total columns for colspan (fixed columns + dynamic event columns)
+  const totalColumns = 6 + eventColumns.length; // Code, Created, Referrals, [events...], Total Conversions, Earnings, Status, Actions
+
   return (
     <div className="referral-codes-section">
       <div className="section-header">
@@ -163,6 +216,7 @@ export default function ReferralCodesTable({ codes }: ReferralCodesTableProps) {
         <table className="referral-codes-table">
           <thead>
             <tr>
+              {/* Fixed columns */}
               <th onClick={() => handleSort("code")} className="sortable">
                 Referral Code {getSortIcon("code")}
               </th>
@@ -175,18 +229,15 @@ export default function ReferralCodesTable({ codes }: ReferralCodesTableProps) {
               >
                 Referrals {getSortIcon("referralsCount")}
               </th>
-              <th
-                onClick={() => handleSort("trialConversions")}
-                className="sortable"
-              >
-                Trial Conversions {getSortIcon("trialConversions")}
-              </th>
-              <th
-                onClick={() => handleSort("paidConversions")}
-                className="sortable"
-              >
-                Paid Conversions {getSortIcon("paidConversions")}
-              </th>
+
+              {/* Dynamic event columns based on commission configs */}
+              {eventColumns.map((col) => (
+                <th key={col.eventName} className="event-column">
+                  {col.displayName}
+                </th>
+              ))}
+
+              {/* More fixed columns */}
               <th
                 onClick={() => handleSort("conversions")}
                 className="sortable"
@@ -199,19 +250,19 @@ export default function ReferralCodesTable({ codes }: ReferralCodesTableProps) {
               <th onClick={() => handleSort("status")} className="sortable">
                 Status {getSortIcon("status")}
               </th>
-              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {filteredAndSortedCodes.length === 0 ? (
               <tr>
-                <td colSpan={9} className="no-results">
+                <td colSpan={totalColumns} className="no-results">
                   No referral codes found
                 </td>
               </tr>
             ) : (
               filteredAndSortedCodes.map((code) => (
                 <tr key={code.id}>
+                  {/* Fixed columns */}
                   <td>
                     <div className="code-cell">
                       <code className="referral-code">{code.code}</code>
@@ -226,8 +277,23 @@ export default function ReferralCodesTable({ codes }: ReferralCodesTableProps) {
                   </td>
                   <td>{formatDate(code.createdAt)}</td>
                   <td>{code.referralsCount?.toLocaleString() || 0}</td>
-                  <td>{code.trialConversions?.toLocaleString() || 0}</td>
-                  <td>{code.paidConversions?.toLocaleString() || 0}</td>
+
+                  {/* Dynamic event columns - show count from eventStats or "-" if not configured */}
+                  {eventColumns.map((col) => {
+                    // Check if this code has this event in its commission config
+                    const hasEvent = code.commissionConfig?.some(
+                      (c) => c.event === col.eventName
+                    );
+                    const count = code.eventStats?.[col.eventName] ?? 0;
+
+                    return (
+                      <td key={col.eventName} className="event-cell">
+                        {hasEvent ? count.toLocaleString() : "-"}
+                      </td>
+                    );
+                  })}
+
+                  {/* More fixed columns */}
                   <td>{code.conversions.toLocaleString()}</td>
                   <td className="earnings-cell">
                     {code.earnings
@@ -241,23 +307,6 @@ export default function ReferralCodesTable({ codes }: ReferralCodesTableProps) {
                     <span className={`status-badge ${code.status}`}>
                       {code.status}
                     </span>
-                  </td>
-                  <td>
-                    <div className="action-buttons">
-                      <button
-                        className="view-detail-button"
-                        onClick={() => setSelectedCodeDetail(code)}
-                      >
-                        View Details
-                      </button>
-                      {/* <button
-                        className="view-users-button"
-                        onClick={() => handleViewUsers(code.code)}
-                        disabled={loadingUsers}
-                      >
-                        {loadingUsers ? 'Loading...' : 'View Users'} */}
-                      {/* </button> */}
-                    </div>
                   </td>
                 </tr>
               ))

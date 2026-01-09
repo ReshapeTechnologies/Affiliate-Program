@@ -14,7 +14,7 @@ export interface ReferralCode {
   id: string;
   code: string;
   createdAt: string;
-  conversions: number; // signup + free_trial + paid conversions
+  conversions: number; // signup + all configured event conversions
   status: ReferralStatus;
   commissionConfig?: CommissionRule[];
   quota?: number | null;
@@ -23,6 +23,9 @@ export interface ReferralCode {
   startDate?: string | null;
   endDate?: string | null;
   durationDays?: number;
+  // Dynamic event stats - keys match commissionConfig event names
+  eventStats?: Record<string, number>;
+  // Legacy fields for backward compatibility
   trialConversions?: number;
   paidConversions?: number;
   earnings?: EarningsBreakdown; // Calculated earnings for this code
@@ -33,9 +36,12 @@ export interface DashboardStats {
   activeReferralCodes: number;
   inactiveReferralCodes: number;
   exhaustedReferralCodes: number;
-  totalConversions: number; // signup + free_trial + paid conversions
+  totalConversions: number; // signup + all configured event conversions
   totalReferrals: number; // same as signupConversions
   signupConversions: number;
+  // Dynamic event stats aggregated across all codes
+  eventStats?: Record<string, number>;
+  // Legacy fields for backward compatibility
   trialConversions: number;
   paidConversions: number;
   totalEarnings: EarningsBreakdown; // Total income
@@ -44,6 +50,9 @@ export interface DashboardStats {
 export interface TimeSeriesData {
   date: string;
   signupConversions: number;
+  // Dynamic event counts by type
+  eventCounts?: Record<string, number>;
+  // Legacy fields for backward compatibility
   trialConversions: number;
   paidConversions: number;
 }

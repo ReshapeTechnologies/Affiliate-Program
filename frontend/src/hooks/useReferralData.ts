@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { apiService } from "../services/api";
 import {
   transformReferralCodes,
@@ -6,7 +6,13 @@ import {
   createEmptyDashboardStats,
 } from "../utils/transformers";
 import { buildTimeSeriesFromUsers } from "../utils/timeSeries";
+import {
+  buildEventUnionMapFromLegacy,
+  generateTimeSeriesFromLegacyHistory,
+  type EventUnionMap,
+} from "../utils/eventAggregation";
 import type { ReferralCode, DashboardStats, TimeSeriesData } from "../types";
+import type { AffiliatePurchaseHistoryByCode } from "../types/commission";
 
 interface UseReferralDataReturn {
   referralCodes: ReferralCode[];
@@ -16,6 +22,10 @@ interface UseReferralDataReturn {
   loadingHistory: boolean;
   error: string | null;
   refetch: () => Promise<void>;
+  /** Union map of all event types (source of truth for rendering) */
+  eventUnionMap: EventUnionMap;
+  /** Raw purchase history response for advanced usage */
+  purchaseHistoryData: AffiliatePurchaseHistoryByCode[];
 }
 
 export function useReferralData(
@@ -29,6 +39,17 @@ export function useReferralData(
   const [loadingCodes, setLoadingCodes] = useState<boolean>(true);
   const [loadingHistory, setLoadingHistory] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [purchaseHistoryData, setPurchaseHistoryData] = useState<
+    AffiliatePurchaseHistoryByCode[]
+  >([]);
+
+  // Build event union map from purchase history data
+  const eventUnionMap = useMemo<EventUnionMap>(() => {
+    if (purchaseHistoryData.length === 0) {
+      return new Map();
+    }
+    return buildEventUnionMapFromLegacy(purchaseHistoryData);
+  }, [purchaseHistoryData]);
 
   const fetchCodes = async () => {
     try {
@@ -70,6 +91,9 @@ export function useReferralData(
       );
 
       if (historyResponse.success && historyResponse.data) {
+        // Store raw data for union map building
+        setPurchaseHistoryData(historyResponse.data);
+
         // data is array of { referralCode, users: [ { events:[...] } ] }
         historyResponse.data.forEach((codeGroup: any) => {
           if (codeGroup.users && Array.isArray(codeGroup.users)) {
@@ -81,9 +105,22 @@ export function useReferralData(
             });
           }
         });
+
+        // Try to generate time series from new enriched format first
+        const unionMap = buildEventUnionMapFromLegacy(historyResponse.data);
+        if (unionMap.size > 0) {
+          const enrichedTimeSeries = generateTimeSeriesFromLegacyHistory(
+            historyResponse.data,
+            unionMap
+          );
+          if (enrichedTimeSeries.length > 0) {
+            setTimeSeriesData(enrichedTimeSeries);
+            return;
+          }
+        }
       }
 
-      // Generate time series data using centralized helper
+      // Fallback: Generate time series data using legacy helper
       const timeSeries = buildTimeSeriesFromUsers(allUsers);
       setTimeSeriesData(timeSeries);
     } catch (err) {
@@ -115,5 +152,7 @@ export function useReferralData(
     loadingHistory,
     error,
     refetch: fetchData,
+    eventUnionMap,
+    purchaseHistoryData,
   };
 }

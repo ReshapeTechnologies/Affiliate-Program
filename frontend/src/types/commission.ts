@@ -6,6 +6,7 @@ export interface CommissionRule {
   event: CommissionEventType; // Matches backend: 'event' not 'eventType'
   rate: number;
   currency: string;
+  display_name?: string; // Human-readable name from config mapping
 }
 
 export interface EarningsBreakdown {
@@ -13,6 +14,26 @@ export interface EarningsBreakdown {
   total: number;
   currency: string;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Config Mapping Types (for dynamic event name resolution)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Mapping entry from the hosted JSON config */
+export interface ConfigMapping {
+  commission_config_event_name: string; // e.g., "3_meals_logged"
+  backend_activity_event_name: string; // e.g., "3 Meals Logged"
+  display_name: string; // e.g., "3 Meals Logged"
+}
+
+/** Event metadata built from union of all codes */
+export interface EventMetadata {
+  displayName: string;
+  isPurchaseType: boolean;
+}
+
+/** Union map of all event types across referral codes */
+export type EventUnionMap = Map<string, EventMetadata>;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // API Response Types (matching backend responses)
@@ -30,9 +51,23 @@ export interface AffiliateReferralCode {
   commissionConfig: CommissionRule[];
   stats: {
     totalReferrals: number;
-    free_trial: number;
-    purchase: number;
+    // Dynamic keys spread from eventStats (e.g., free_trial, purchase, 3_meals_logged)
+    [key: string]: number;
   };
+}
+
+/** Enriched event with display metadata (new response format) */
+export interface EnrichedEvent {
+  commission_event_name: string; // Original config name (e.g., "3_meals_logged")
+  display_name: string; // Human-readable (e.g., "3 Meals Logged")
+  count: number;
+  timestamps: string[];
+}
+
+/** Enriched referral code data (new response format) */
+export interface EnrichedReferralCodeData {
+  code: string;
+  events: EnrichedEvent[];
 }
 
 /** User with purchase events - used in performance tab */
@@ -43,10 +78,22 @@ export interface ReferredUserWithHistory {
   subscriptionInfo: any | null;
   createdAt: string | null;
   referralCreatedAt?: string | null;
-  events: PurchaseEvent[];
+  // Combined and sorted events from both purchase and activity sources
+  events: NormalizedEvent[];
+  // Separate arrays for backward compatibility
+  purchaseEvents?: NormalizedEvent[];
+  activityEvents?: NormalizedEvent[];
 }
 
-/** Single purchase event from RevenueCat */
+/** Normalized event shape (common for both purchase and activity events) */
+export interface NormalizedEvent {
+  type: string; // e.g. "free_trial", "purchase", "3_meals_logged"
+  source: "purchase" | "activity";
+  date: string | null;
+  raw: any; // Original event data
+}
+
+/** Single purchase event from RevenueCat (legacy, kept for raw data) */
 export interface PurchaseEvent {
   type: string; // e.g. "INITIAL_PURCHASE", "RENEWAL", etc.
   period_type?: string; // "TRIAL" | "NORMAL"
@@ -63,15 +110,27 @@ export interface AffiliatePurchaseHistoryByCode {
   commissionConfig: CommissionRule[];
   stats: {
     totalReferrals: number;
-    free_trial: number;
-    purchase: number;
+    [key: string]: number;
   };
   users: ReferredUserWithHistory[];
+  // New enriched format
+  code?: string;
+  events?: EnrichedEvent[];
 }
 
 /** Response from GET /api/get-affiliate-purchase-history (single user) */
 export interface AffiliatePurchaseHistoryByUser {
   referralCode: string;
   user: ReferredUserWithHistory;
-  events: PurchaseEvent[];
+  events: NormalizedEvent[];
+  purchaseEvents?: NormalizedEvent[];
+  activityEvents?: NormalizedEvent[];
+}
+
+/** Response from GET /api/get-affiliate-purchase-history (all codes - new format) */
+export interface AffiliatePurchaseHistoryResponse {
+  // Legacy format (backward compatible)
+  data: AffiliatePurchaseHistoryByCode[];
+  // New enriched format
+  referral_codes?: EnrichedReferralCodeData[];
 }
