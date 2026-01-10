@@ -1,9 +1,4 @@
-import type {
-  ReferralCode,
-  DashboardStats,
-  TimeSeriesData,
-  ReferralStatus,
-} from "../types";
+import type { ReferralCode, DashboardStats, ReferralStatus } from "../types";
 import type { AffiliateReferralCode } from "../types/commission";
 import { calculateEarnings } from "./earnings";
 
@@ -18,13 +13,7 @@ export function createEmptyDashboardStats(
     activeReferralCodes: 0,
     inactiveReferralCodes: 0,
     exhaustedReferralCodes: 0,
-    totalConversions: 0,
-    totalReferrals: 0,
-    signupConversions: 0,
     eventStats: {},
-    // Legacy fields for backward compatibility
-    trialConversions: 0,
-    paidConversions: 0,
     totalEarnings: {
       breakdown: {},
       total: 0,
@@ -46,51 +35,30 @@ export function transformReferralCode(
     : null;
   const quota = typeof backendRef.quota === "number" ? backendRef.quota : null;
 
-  // Use stats from backend - now dynamic
-  // Extract totalReferrals and treat the rest as event stats
-  const { totalReferrals, ...restStats } = backendRef.stats || {};
+  // Use stats from backend - all events including signup
+  const eventStats: Record<string, number> = backendRef.stats || {};
 
-  const referralsCount = totalReferrals ?? 0;
-  const signupConversions = referralsCount; // signups = referrals count
-
-  // Get eventStats from backend (dynamic event counts)
-  const eventStats: Record<string, number> = restStats || {};
-
-  // Legacy fields for backward compatibility
-  const trialConversions =
-    eventStats["free_trial"] ?? backendRef.stats?.free_trial ?? 0;
-  const paidConversions =
-    eventStats["purchase"] ?? backendRef.stats?.purchase ?? 0;
-
-  // Total conversions = signup + sum of all event stats
-  const eventConversions = Object.values(eventStats).reduce(
-    (sum, count) => sum + count,
-    0
-  );
-  const conversions = signupConversions + eventConversions;
-  const usageCount = Math.max(conversions, referralsCount);
-
-  // Determine status based on dates
+  // Determine status based on dates and quota
   let status: ReferralStatus = "active";
   const inactiveBySchedule = Boolean(
     (endDate && endDate < now) || (startDate && startDate > now)
   );
 
+  // Total conversions = sum of all eventStats (includes signup)
+  const totalConversions = Object.values(eventStats).reduce(
+    (sum, count) => sum + count,
+    0
+  );
+
   if (inactiveBySchedule) {
     status = "inactive";
-  } else if (quota !== null && usageCount >= quota) {
+  } else if (quota !== null && totalConversions >= quota) {
     status = "exhausted";
   }
 
-  // Calculate earnings using dynamic rules from the code itself
-  // Build stats object from eventStats + signups
-  const earningsStats: Record<string, number> = {
-    signup: referralsCount,
-    ...eventStats,
-  };
-
+  // Calculate earnings using stats object which includes all events
   const earnings = calculateEarnings(
-    earningsStats,
+    eventStats,
     backendRef.commissionConfig || []
   );
 
@@ -99,19 +67,13 @@ export function transformReferralCode(
     code: backendRef.code,
     createdAt:
       backendRef.createdAt || backendRef.startDate || new Date().toISOString(),
-    conversions,
     status,
     commissionConfig: backendRef.commissionConfig || [],
     quota,
-    referralsCount,
-    signupConversions,
     startDate: backendRef.startDate || null,
     endDate: backendRef.endDate || null,
     durationDays: backendRef.noOfDays,
     eventStats,
-    // Legacy fields
-    trialConversions,
-    paidConversions,
     earnings,
   };
 }
@@ -137,20 +99,12 @@ export function calculateDashboardStats(
   const emptyStats = createEmptyDashboardStats(defaultCurrency);
 
   const totals = referralCodes.reduce((acc, code) => {
-    acc.totalConversions += code.conversions || 0;
-    acc.signupConversions += code.signupConversions || 0;
-    acc.totalReferrals += code.referralsCount || 0;
-
-    // Aggregate dynamic eventStats
+    // Aggregate dynamic eventStats (includes signup, free_trial, purchase, etc.)
     if (code.eventStats) {
       for (const [event, count] of Object.entries(code.eventStats)) {
         acc.eventStats![event] = (acc.eventStats![event] || 0) + count;
       }
     }
-
-    // Legacy fields for backward compatibility
-    acc.trialConversions += code.trialConversions || 0;
-    acc.paidConversions += code.paidConversions || 0;
 
     if (code.status === "active") {
       acc.activeReferralCodes += 1;
@@ -179,46 +133,13 @@ export function calculateDashboardStats(
     activeReferralCodes: totals.activeReferralCodes,
     inactiveReferralCodes: totals.inactiveReferralCodes,
     exhaustedReferralCodes: totals.exhaustedReferralCodes,
-    totalConversions: totals.totalConversions,
-    totalReferrals: totals.totalReferrals,
-    signupConversions: totals.signupConversions,
     eventStats: totals.eventStats,
-    trialConversions: totals.trialConversions,
-    paidConversions: totals.paidConversions,
     totalEarnings: {
       breakdown: totals.totalEarnings.breakdown,
       total: Number(totals.totalEarnings.total.toFixed(2)),
       currency: totals.totalEarnings.currency,
     },
   };
-}
-
-/**
- * Generate time series data from referral codes
- * This function is deprecated - use generateTimeSeriesFromEvents instead
- */
-export function generateTimeSeriesData(
-  _referralCodes: ReferralCode[]
-): TimeSeriesData[] {
-  // This is a placeholder - actual time series should come from purchase history events
-  const data: TimeSeriesData[] = [];
-  const today = new Date();
-
-  // Generate last 30 days with zero data
-  for (let i = 29; i >= 0; i--) {
-    const date = new Date(today);
-    date.setDate(date.getDate() - i);
-    const dateKey = date.toISOString().split("T")[0];
-
-    data.push({
-      date: dateKey,
-      signupConversions: 0,
-      trialConversions: 0,
-      paidConversions: 0,
-    });
-  }
-
-  return data;
 }
 
 /**

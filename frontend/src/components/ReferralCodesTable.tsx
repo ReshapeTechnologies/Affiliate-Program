@@ -94,7 +94,7 @@ export default function ReferralCodesTable({ codes }: ReferralCodesTableProps) {
     // Apply usage filter (used = has signups/referrals)
     if (usageFilter !== "all") {
       result = result.filter((code) => {
-        const hasSignups = (code.referralsCount ?? 0) > 0;
+        const hasSignups = (code.eventStats?.signup ?? 0) > 0;
         return usageFilter === "used" ? hasSignups : !hasSignups;
       });
     }
@@ -125,20 +125,20 @@ export default function ReferralCodesTable({ codes }: ReferralCodesTableProps) {
     sortConfig,
   ]);
 
-  const handleSort = (key: keyof ReferralCode) => {
+  const handleSort = (key: string) => {
     setSortConfig((current) => {
-      if (current?.key === key) {
+      if (current && (current.key as any) === key) {
         return {
-          key,
+          key: key as keyof ReferralCode,
           direction: toggleSortDirection(current.direction),
         };
       }
-      return { key, direction: "asc" };
+      return { key: key as keyof ReferralCode, direction: "asc" };
     });
   };
 
-  const getSortIcon = (key: keyof ReferralCode) => {
-    if (sortConfig?.key !== key) return "⇅";
+  const getSortIcon = (key: string) => {
+    if (!sortConfig || sortConfig?.key !== (key as any)) return "⇅";
     return sortConfig.direction === "asc" ? "↑" : "↓";
   };
 
@@ -223,11 +223,8 @@ export default function ReferralCodesTable({ codes }: ReferralCodesTableProps) {
               <th onClick={() => handleSort("createdAt")} className="sortable">
                 Created {getSortIcon("createdAt")}
               </th>
-              <th
-                onClick={() => handleSort("referralsCount")}
-                className="sortable"
-              >
-                Referrals {getSortIcon("referralsCount")}
+              <th onClick={() => handleSort("signups")} className="sortable">
+                Signups {getSortIcon("signups")}
               </th>
 
               {/* Dynamic event columns based on commission configs */}
@@ -239,10 +236,10 @@ export default function ReferralCodesTable({ codes }: ReferralCodesTableProps) {
 
               {/* More fixed columns */}
               <th
-                onClick={() => handleSort("conversions")}
+                onClick={() => handleSort("totalConversions")}
                 className="sortable"
               >
-                Total Conversions {getSortIcon("conversions")}
+                Total Conversions {getSortIcon("totalConversions")}
               </th>
               <th onClick={() => handleSort("earnings")} className="sortable">
                 Earnings {getSortIcon("earnings")}
@@ -276,7 +273,7 @@ export default function ReferralCodesTable({ codes }: ReferralCodesTableProps) {
                     </div>
                   </td>
                   <td>{formatDate(code.createdAt)}</td>
-                  <td>{code.referralsCount?.toLocaleString() || 0}</td>
+                  <td>{(code.eventStats?.signup ?? 0).toLocaleString()}</td>
 
                   {/* Dynamic event columns - show count from eventStats or "-" if not configured */}
                   {eventColumns.map((col) => {
@@ -294,7 +291,11 @@ export default function ReferralCodesTable({ codes }: ReferralCodesTableProps) {
                   })}
 
                   {/* More fixed columns */}
-                  <td>{code.conversions.toLocaleString()}</td>
+                  <td>
+                    {Object.values(code.eventStats || {})
+                      .reduce((sum, c) => sum + c, 0)
+                      .toLocaleString()}
+                  </td>
                   <td className="earnings-cell">
                     {code.earnings
                       ? formatCurrency(

@@ -9,7 +9,6 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import type { TimeSeriesData } from "../types";
 import DateRangeSelector from "./DateRangeSelector";
 
 type PresetOption = "last-30" | "all-time" | "custom";
@@ -21,14 +20,14 @@ export interface TimeSeriesChartConfig {
   showDateRangeSelector?: boolean;
   height?: number;
   lines: Array<{
-    dataKey: keyof TimeSeriesData;
+    dataKey: string;
     name: string;
     color: string;
   }>;
 }
 
 interface TimeSeriesChartProps {
-  data: TimeSeriesData[];
+  data: any[];
   config: TimeSeriesChartConfig;
 }
 
@@ -278,6 +277,7 @@ export default function TimeSeriesChart({
               stroke={line.color}
               strokeWidth={2}
               name={line.name}
+              connectNulls
               dot={{ r: 4 }}
             />
           ))}

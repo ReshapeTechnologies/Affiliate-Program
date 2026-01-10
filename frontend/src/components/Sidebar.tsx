@@ -8,8 +8,8 @@ export default function Sidebar() {
       icon: LineChart,
       label: "Analytics",
       path: "/analytics",
-      disabled: true,
-      comingSoon: true,
+      disabled: false,
+      comingSoon: false,
     },
   ];
 
@@ -41,11 +41,11 @@ export default function Sidebar() {
           >
             <item.icon className="w-5 h-5 mr-3" />
             {item.label}
-            {item.comingSoon && (
+            {/* {item.comingSoon && (
               <span className="ml-auto text-xs font-semibold px-2 py-1 bg-amber-100 text-amber-800 rounded">
                 Coming Soon
               </span>
-            )}
+            )} */}
           </NavLink>
         ))}
       </nav>

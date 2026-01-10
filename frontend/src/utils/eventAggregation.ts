@@ -240,37 +240,35 @@ export function generateTimeSeriesFromEnrichedEvents(
     }
   }
 
-  // Convert to array and sort by date
-  let dates = Array.from(dateCountsMap.keys()).sort();
+  // Determine desired range
+  const todayIso = new Date().toISOString().split("T")[0];
+  const rangeStartIso =
+    startDate ||
+    (dateCountsMap.size > 0
+      ? Array.from(dateCountsMap.keys()).sort()[0]
+      : new Date(new Date().setDate(new Date().getDate() - 30))
+          .toISOString()
+          .split("T")[0]);
+  const rangeEndIso = endDate || todayIso;
 
-  // Filter by date range if provided
-  if (startDate) {
-    dates = dates.filter((d) => d >= startDate);
-  }
-  if (endDate) {
-    dates = dates.filter((d) => d <= endDate);
-  }
+  // Fill all dates in range with zeros when missing
+  const filledDates: string[] = [];
+  const start = new Date(rangeStartIso);
+  const end = new Date(rangeEndIso);
 
-  // Fill in missing dates between start and end
-  if (dates.length > 0) {
-    const filledDates: string[] = [];
-    const start = new Date(dates[0]);
-    const end = new Date(dates[dates.length - 1]);
-
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      const dateKey = d.toISOString().split("T")[0];
-      filledDates.push(dateKey);
-
-      if (!dateCountsMap.has(dateKey)) {
-        const counts: Record<string, number> = {};
-        for (const eventName of unionMap.keys()) {
-          counts[eventName] = 0;
-        }
-        dateCountsMap.set(dateKey, counts);
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const dateKey = d.toISOString().split("T")[0];
+    filledDates.push(dateKey);
+    if (!dateCountsMap.has(dateKey)) {
+      const counts: Record<string, number> = {};
+      for (const eventName of unionMap.keys()) {
+        counts[eventName] = 0;
       }
+      dateCountsMap.set(dateKey, counts);
     }
-    dates = filledDates;
   }
+
+  let dates = filledDates;
 
   // Build time series data
   return dates.map((date) => {
@@ -339,14 +337,31 @@ export function generateTimeSeriesFromLegacyHistory(
     }
   }
 
-  // Sort and fill dates
-  let dates = Array.from(dateCountsMap.keys()).sort();
+  // Determine desired range (default last 30 days when sparse)
+  const todayIso = new Date().toISOString().split("T")[0];
+  const rangeStartIso =
+    startDate ||
+    (dateCountsMap.size > 0
+      ? Array.from(dateCountsMap.keys()).sort()[0]
+      : new Date(new Date().setDate(new Date().getDate() - 30))
+          .toISOString()
+          .split("T")[0]);
+  const rangeEndIso = endDate || todayIso;
 
-  if (startDate) {
-    dates = dates.filter((d) => d >= startDate);
-  }
-  if (endDate) {
-    dates = dates.filter((d) => d <= endDate);
+  const dates: string[] = [];
+  const start = new Date(rangeStartIso);
+  const end = new Date(rangeEndIso);
+
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const dateKey = d.toISOString().split("T")[0];
+    dates.push(dateKey);
+    if (!dateCountsMap.has(dateKey)) {
+      const counts: Record<string, number> = {};
+      for (const eventName of unionMap.keys()) {
+        counts[eventName] = 0;
+      }
+      dateCountsMap.set(dateKey, counts);
+    }
   }
 
   return dates.map((date) => {

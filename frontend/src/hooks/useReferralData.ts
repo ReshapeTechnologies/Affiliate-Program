@@ -26,12 +26,19 @@ interface UseReferralDataReturn {
   eventUnionMap: EventUnionMap;
   /** Raw purchase history response for advanced usage */
   purchaseHistoryData: AffiliatePurchaseHistoryByCode[];
+  /** Raw referral codes response for debugging */
+  rawReferralCodesResponse: any[];
+  /** Raw purchase history response for debugging */
+  rawPurchaseHistoryResponse: any[];
 }
 
 export function useReferralData(
   isAuthenticated: boolean = true
 ): UseReferralDataReturn {
   const [referralCodes, setReferralCodes] = useState<ReferralCode[]>([]);
+  const [rawReferralCodesResponse, setRawReferralCodesResponse] = useState<
+    any[]
+  >([]);
   const [stats, setStats] = useState<DashboardStats>(() =>
     createEmptyDashboardStats("USD")
   );
@@ -41,6 +48,9 @@ export function useReferralData(
   const [error, setError] = useState<string | null>(null);
   const [purchaseHistoryData, setPurchaseHistoryData] = useState<
     AffiliatePurchaseHistoryByCode[]
+  >([]);
+  const [rawPurchaseHistoryResponse, setRawPurchaseHistoryResponse] = useState<
+    any[]
   >([]);
 
   // Build event union map from purchase history data
@@ -58,6 +68,8 @@ export function useReferralData(
       const response = await apiService.getAffiliateReferralCodes();
 
       if (response.success && response.data) {
+        // Store raw response
+        setRawReferralCodesResponse(response.data);
         // Transform backend data to frontend format (with earnings calculation)
         const transformedCodes = transformReferralCodes(response.data);
         setReferralCodes(transformedCodes);
@@ -91,7 +103,9 @@ export function useReferralData(
       );
 
       if (historyResponse.success && historyResponse.data) {
-        // Store raw data for union map building
+        // Store raw response for debugging
+        setRawPurchaseHistoryResponse(historyResponse.data);
+        // Store processed data for union map building
         setPurchaseHistoryData(historyResponse.data);
 
         // data is array of { referralCode, users: [ { events:[...] } ] }
@@ -154,5 +168,7 @@ export function useReferralData(
     refetch: fetchData,
     eventUnionMap,
     purchaseHistoryData,
+    rawReferralCodesResponse,
+    rawPurchaseHistoryResponse,
   };
 }

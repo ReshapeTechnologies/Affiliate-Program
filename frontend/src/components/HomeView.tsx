@@ -40,7 +40,7 @@ function buildEventDisplayNameMap(
 
 /**
  * Build dynamic conversion subtitle from eventStats
- * Note: Signups = Referrals count, so we don't duplicate it
+ * Shows count of each event type
  */
 function buildConversionSubtitle(
   stats: DashboardStats,
@@ -48,25 +48,14 @@ function buildConversionSubtitle(
 ): string {
   const parts: string[] = [];
 
-  // Add dynamic event stats (skip "signup" since referrals count IS signups)
+  // Add all event stats
   if (stats.eventStats && Object.keys(stats.eventStats).length > 0) {
     Object.entries(stats.eventStats).forEach(([eventType, count]) => {
-      // Skip "signup" event - it's the same as referrals count
-      if (eventType.toLowerCase() === "signup") return;
-
       // Use display name from map if available, otherwise format the event type
       const displayName =
         displayNameMap.get(eventType) || formatEventType(eventType);
       parts.push(`${count.toLocaleString()} ${displayName.toLowerCase()}`);
     });
-  } else {
-    // Fallback to legacy fields if no eventStats
-    if (stats.trialConversions > 0) {
-      parts.push(`${stats.trialConversions.toLocaleString()} trial`);
-    }
-    if (stats.paidConversions > 0) {
-      parts.push(`${stats.paidConversions.toLocaleString()} paid`);
-    }
   }
 
   return parts.length > 0 ? parts.join(" · ") : "No conversions yet";
@@ -121,7 +110,9 @@ export default function HomeView({
 
         <StatsCard
           title="Total Conversions"
-          value={stats.totalConversions.toLocaleString()}
+          value={Object.values(stats.eventStats || {})
+            .reduce((sum, count) => sum + count, 0)
+            .toLocaleString()}
           subtitle={buildConversionSubtitle(stats, displayNameMap)}
         />
         <StatsCard

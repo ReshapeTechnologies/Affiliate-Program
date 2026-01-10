@@ -16,6 +16,8 @@ function AppContent() {
     loadingHistory,
     error,
     refetch,
+    rawReferralCodesResponse,
+    rawPurchaseHistoryResponse,
   } = useReferralData(isAuthenticated);
 
   // Show loading spinner while checking auth status
@@ -49,6 +51,8 @@ function AppContent() {
       error={error}
       onRetry={refetch}
       onLogout={logout}
+      rawReferralCodesResponse={rawReferralCodesResponse}
+      rawPurchaseHistoryResponse={rawPurchaseHistoryResponse}
     />
   );
 }

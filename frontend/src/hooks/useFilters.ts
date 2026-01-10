@@ -2,12 +2,15 @@ import { useState, useMemo } from "react";
 import type { SortConfig } from "../utils/filters";
 import { filterItems, sortItems, filterByDateRange } from "../utils/filters";
 
-interface UseFiltersOptions<T> {
+interface UseFiltersOptions<T extends Record<string, any>> {
   searchKeys?: (keyof T)[];
   dateKey?: keyof T;
 }
 
-export function useFilters<T>(items: T[], options: UseFiltersOptions<T> = {}) {
+export function useFilters<T extends Record<string, any>>(
+  items: T[],
+  options: UseFiltersOptions<T> = {}
+) {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [sortConfig, setSortConfig] = useState<SortConfig<T> | null>(null);
   const [startDate, setStartDate] = useState<string | null>(null);

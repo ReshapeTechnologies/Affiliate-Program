@@ -180,6 +180,12 @@ export default function ReferralCodeDetailView({
     currency: earningsCurrency,
   };
 
+  // Compute totals from dynamic eventStats
+  const totalConversions = (
+    Object.values(referralCode.eventStats || {}) as number[]
+  ).reduce((sum, count) => sum + count, 0);
+  const signupCount = referralCode.eventStats?.signup ?? 0;
+
   return (
     <div className="detail-view-overlay" onClick={onClose}>
       <div className="detail-view-modal" onClick={(e) => e.stopPropagation()}>
@@ -189,13 +195,11 @@ export default function ReferralCodeDetailView({
             <div className="detail-view-stats">
               <div className="stat-item">
                 <span className="stat-label">Total Conversions:</span>
-                <span className="stat-value">{referralCode.conversions}</span>
+                <span className="stat-value">{totalConversions}</span>
               </div>
               <div className="stat-item">
                 <span className="stat-label">Referrals:</span>
-                <span className="stat-value">
-                  {referralCode.referralsCount || 0}
-                </span>
+                <span className="stat-value">{signupCount}</span>
               </div>
               {/* Dynamic event stats from eventStats (skip "signup" - same as referrals) */}
               {referralCode.eventStats &&
@@ -213,24 +217,7 @@ export default function ReferralCodeDetailView({
                       <span className="stat-value">{count}</span>
                     </div>
                   ))}
-              {/* Fallback to legacy fields if no eventStats */}
-              {(!referralCode.eventStats ||
-                Object.keys(referralCode.eventStats).length === 0) && (
-                <>
-                  <div className="stat-item">
-                    <span className="stat-label">Trial:</span>
-                    <span className="stat-value">
-                      {referralCode.trialConversions || 0}
-                    </span>
-                  </div>
-                  <div className="stat-item">
-                    <span className="stat-label">Paid:</span>
-                    <span className="stat-value">
-                      {referralCode.paidConversions || 0}
-                    </span>
-                  </div>
-                </>
-              )}
+              {/* eventStats already includes dynamic events; legacy fallback removed */}
               <div className="stat-item earnings-stat">
                 <span className="stat-label">Total Earnings:</span>
                 <span className="stat-value earnings">

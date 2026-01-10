@@ -1,6 +1,6 @@
 // Filter and Sort Utilities
 
-export type SortDirection = 'asc' | 'desc';
+export type SortDirection = "asc" | "desc";
 
 export interface SortConfig<T> {
   key: keyof T;
@@ -28,23 +28,49 @@ export function filterItems<T>(
 }
 
 /**
- * Generic sort function
+ * Generic sort function with support for computed fields
  */
-export function sortItems<T>(
+export function sortItems<T extends Record<string, any>>(
   items: T[],
   sortConfig: SortConfig<T> | null
 ): T[] {
   if (!sortConfig) return items;
 
   return [...items].sort((a, b) => {
-    let aValue = a[sortConfig.key];
-    let bValue = b[sortConfig.key];
+    let aValue: any = a[sortConfig.key];
+    let bValue: any = b[sortConfig.key];
 
+    // Handle special computed fields for ReferralCode
+    if (
+      (sortConfig.key as string) === "signups" &&
+      "eventStats" in a &&
+      "eventStats" in b
+    ) {
+      aValue = (a as any).eventStats?.signup ?? 0;
+      bValue = (b as any).eventStats?.signup ?? 0;
+    } else if (
+      (sortConfig.key as string) === "totalConversions" &&
+      "eventStats" in a &&
+      "eventStats" in b
+    ) {
+      aValue = (Object.values((a as any).eventStats || {}) as number[]).reduce(
+        (sum, count) => sum + count,
+        0
+      );
+      bValue = (Object.values((b as any).eventStats || {}) as number[]).reduce(
+        (sum, count) => sum + count,
+        0
+      );
+    }
     // Handle nested objects (e.g., earnings.total)
-    if (typeof aValue === 'object' && aValue !== null && 'total' in aValue) {
+    else if (
+      typeof aValue === "object" &&
+      aValue !== null &&
+      "total" in aValue
+    ) {
       aValue = (aValue as any).total;
     }
-    if (typeof bValue === 'object' && bValue !== null && 'total' in bValue) {
+    if (typeof bValue === "object" && bValue !== null && "total" in bValue) {
       bValue = (bValue as any).total;
     }
 
@@ -54,15 +80,15 @@ export function sortItems<T>(
 
     // Compare values
     let comparison = 0;
-    if (typeof aValue === 'number' && typeof bValue === 'number') {
+    if (typeof aValue === "number" && typeof bValue === "number") {
       comparison = aValue - bValue;
-    } else if (typeof aValue === 'string' && typeof bValue === 'string') {
+    } else if (typeof aValue === "string" && typeof bValue === "string") {
       comparison = aValue.localeCompare(bValue);
     } else {
       comparison = String(aValue).localeCompare(String(bValue));
     }
 
-    return sortConfig.direction === 'asc' ? comparison : -comparison;
+    return sortConfig.direction === "asc" ? comparison : -comparison;
   });
 }
 
@@ -86,9 +112,9 @@ export function filterByDateRange<T>(
     if (!dateValue) return false;
 
     let timestamp: number;
-    if (typeof dateValue === 'number') {
+    if (typeof dateValue === "number") {
       timestamp = dateValue;
-    } else if (typeof dateValue === 'string') {
+    } else if (typeof dateValue === "string") {
       timestamp = new Date(dateValue).getTime();
     } else {
       timestamp = new Date(dateValue as any).getTime();
@@ -104,6 +130,5 @@ export function filterByDateRange<T>(
  * Toggle sort direction
  */
 export function toggleSortDirection(current: SortDirection): SortDirection {
-  return current === 'asc' ? 'desc' : 'asc';
+  return current === "asc" ? "desc" : "asc";
 }
-

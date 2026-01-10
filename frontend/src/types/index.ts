@@ -14,20 +14,14 @@ export interface ReferralCode {
   id: string;
   code: string;
   createdAt: string;
-  conversions: number; // signup + all configured event conversions
   status: ReferralStatus;
   commissionConfig?: CommissionRule[];
   quota?: number | null;
-  referralsCount: number; // signups count
-  signupConversions: number; // same as referralsCount, explicit for clarity
   startDate?: string | null;
   endDate?: string | null;
   durationDays?: number;
-  // Dynamic event stats - keys match commissionConfig event names
-  eventStats?: Record<string, number>;
-  // Legacy fields for backward compatibility
-  trialConversions?: number;
-  paidConversions?: number;
+  // Dynamic event stats - all events including signup
+  eventStats: Record<string, number>;
   earnings?: EarningsBreakdown; // Calculated earnings for this code
 }
 
@@ -36,23 +30,13 @@ export interface DashboardStats {
   activeReferralCodes: number;
   inactiveReferralCodes: number;
   exhaustedReferralCodes: number;
-  totalConversions: number; // signup + all configured event conversions
-  totalReferrals: number; // same as signupConversions
-  signupConversions: number;
-  // Dynamic event stats aggregated across all codes
-  eventStats?: Record<string, number>;
-  // Legacy fields for backward compatibility
-  trialConversions: number;
-  paidConversions: number;
+  // Dynamic event stats aggregated across all codes (includes signup, free_trial, purchase, etc.)
+  eventStats: Record<string, number>;
   totalEarnings: EarningsBreakdown; // Total income
 }
 
 export interface TimeSeriesData {
   date: string;
-  signupConversions: number;
-  // Dynamic event counts by type
-  eventCounts?: Record<string, number>;
-  // Legacy fields for backward compatibility
-  trialConversions: number;
-  paidConversions: number;
+  // Dynamic event counts by type (signup, free_trial, purchase, etc.)
+  eventCounts: Record<string, number>;
 }
