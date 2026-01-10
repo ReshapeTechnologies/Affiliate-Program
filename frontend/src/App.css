@@ -10,12 +10,17 @@
 
 .login-container {
   background: white;
-  padding: 2.5rem;
+  padding: 0;
   border-radius: 1rem;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
   width: 100%;
   max-width: 400px;
   animation: slideUp 0.5s ease-out;
+  overflow: hidden;
+}
+
+.login-content {
+  padding: 2.5rem;
 }
 
 @keyframes slideUp {
@@ -32,6 +37,21 @@
 .login-header {
   text-align: center;
   margin-bottom: 2rem;
+}
+
+.login-brand-header {
+  background: #000;
+  height: 68px; /* compact header height */
+  padding: 0; /* remove extra padding */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-brand-logo {
+  height: 36px; /* balanced logo size */
+  object-fit: contain;
+  margin: 0; /* no extra space around image */
 }
 
 .login-title {
@@ -1355,9 +1375,10 @@
   background: white;
   border-radius: 16px;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-  padding: 2.5rem;
+  padding: 0; /* remove inner padding to let brand bar reach edges */
   width: 100%;
   max-width: 420px;
+  overflow: hidden; /* ensure brand header clips to rounded corners */
 }
 
 .login-header {
