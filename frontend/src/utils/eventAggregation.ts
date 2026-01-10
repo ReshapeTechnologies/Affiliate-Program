@@ -109,6 +109,11 @@ export function buildEventUnionMapFromLegacy(
 ): EventUnionMap {
   const unionMap: EventUnionMap = new Map();
 
+  // Defensive check: ensure codes is an array
+  if (!codes || !Array.isArray(codes)) {
+    return unionMap;
+  }
+
   for (const code of codes) {
     // Add from commission config
     for (const config of code.commissionConfig || []) {

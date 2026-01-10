@@ -71,7 +71,9 @@ export function useReferralData(
         // Store raw response
         setRawReferralCodesResponse(response.data);
         // Transform backend data to frontend format (with earnings calculation)
-        const transformedCodes = transformReferralCodes(response.data);
+        const transformedCodes = transformReferralCodes(
+          Array.isArray(response.data) ? response.data : []
+        );
         setReferralCodes(transformedCodes);
 
         // Calculate stats
@@ -105,8 +107,10 @@ export function useReferralData(
       if (historyResponse.success && historyResponse.data) {
         // Store raw response for debugging
         setRawPurchaseHistoryResponse(historyResponse.data);
-        // Store processed data for union map building
-        setPurchaseHistoryData(historyResponse.data);
+        // Store processed data for union map building (ensure it's an array)
+        setPurchaseHistoryData(
+          Array.isArray(historyResponse.data) ? historyResponse.data : []
+        );
 
         // data is array of { referralCode, users: [ { events:[...] } ] }
         historyResponse.data.forEach((codeGroup: any) => {
