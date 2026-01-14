@@ -6,7 +6,7 @@ import {
   Filter,
   ChevronDown,
   Check,
-  Calendar as CalendarIcon,
+  // Calendar as CalendarIcon,
 } from "lucide-react";
 import type { TimeSeriesData } from "../types";
 import type { CommissionRule } from "../types/commission";
@@ -39,7 +39,7 @@ export default function PerformanceCharts({
   // title = "Performance Overview",
   defaultStartDate,
   defaultEndDate,
-  showDateRangeSelector = true,
+  // showDateRangeSelector = true,
   eventDisplayNames,
   commissionRules,
 }: PerformanceChartsProps) {
@@ -48,7 +48,7 @@ export default function PerformanceCharts({
   );
   const [viewMode, setViewMode] = useState<"count" | "earnings">("count");
   const [isMetricMenuOpen, setIsMetricMenuOpen] = useState(false);
-  const [isDateMenuOpen, setIsDateMenuOpen] = useState(false);
+  // const [isDateMenuOpen, setIsDateMenuOpen] = useState(false);
 
   // Date State
   const todayIso = new Date().toISOString().split("T")[0];
@@ -56,7 +56,7 @@ export default function PerformanceCharts({
     .toISOString()
     .split("T")[0];
 
-  const [datePreset, setDatePreset] = useState<DatePreset>("last-30");
+  // const [datePreset, setDatePreset] = useState<DatePreset>("last-30");
   const [startDate, setStartDate] = useState<string>(
     defaultStartDate || last30DaysIso
   );
@@ -77,7 +77,7 @@ export default function PerformanceCharts({
         dateMenuRef.current &&
         !dateMenuRef.current.contains(event.target as Node)
       ) {
-        setIsDateMenuOpen(false);
+        // setIsDateMenuOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -88,7 +88,7 @@ export default function PerformanceCharts({
 
   // Handle Preset Changes
   const handlePresetChange = (preset: DatePreset) => {
-    setDatePreset(preset);
+    // setDatePreset(preset);
     const end = new Date().toISOString().split("T")[0];
     let start = "";
 
@@ -114,7 +114,7 @@ export default function PerformanceCharts({
     if (preset !== "custom") {
       setStartDate(start);
       setEndDate(end);
-      setIsDateMenuOpen(false);
+      // setIsDateMenuOpen(false);
     }
   };
 
@@ -250,12 +250,12 @@ export default function PerformanceCharts({
   };
 
   // Helper for date display
-  const getDateLabel = () => {
-    if (datePreset === "last-30") return "Last 30 Days";
-    if (datePreset === "last-90") return "Last 90 Days";
-    if (datePreset === "all-time") return "All Time";
-    return "Custom Range";
-  };
+  // const getDateLabel = () => {
+  //   if (datePreset === "last-30") return "Last 30 Days";
+  //   if (datePreset === "last-90") return "Last 90 Days";
+  //   if (datePreset === "all-time") return "All Time";
+  //   return "Custom Range";
+  // };
 
   return (
     <div className="charts-section bg-bg-secondary rounded-lg border border-border-primary p-4">
