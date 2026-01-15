@@ -118,15 +118,6 @@ export interface AffiliatePurchaseHistoryByCode {
   events?: EnrichedEvent[];
 }
 
-/** Response from GET /api/get-affiliate-purchase-history (single user) */
-export interface AffiliatePurchaseHistoryByUser {
-  referralCode: string;
-  user: ReferredUserWithHistory;
-  events: NormalizedEvent[];
-  purchaseEvents?: NormalizedEvent[];
-  activityEvents?: NormalizedEvent[];
-}
-
 /** Response from GET /api/get-affiliate-purchase-history (all codes - new format) */
 export interface AffiliatePurchaseHistoryResponse {
   // Legacy format (backward compatible)

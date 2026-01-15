@@ -120,14 +120,10 @@ class ApiService {
    * Uses JWT authentication - affiliateUserId is optional (overridden by server for non-admins)
    */
   async getAffiliatePurchaseHistory(
-    affiliateUserId?: string,
-    referralCode?: string,
-    userId?: string
+    affiliateUserId?: string
   ): Promise<BackendApiResponse<any[]>> {
     const params = new URLSearchParams();
     if (affiliateUserId) params.append("affiliateUserId", affiliateUserId);
-    if (referralCode) params.append("referralCode", referralCode);
-    if (userId) params.append("userId", userId);
 
     return this.request<BackendApiResponse<any[]>>(
       `/get-affiliate-purchase-history?${params.toString()}`,
