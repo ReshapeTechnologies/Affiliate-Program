@@ -4,6 +4,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  role?: "user" | "admin";
   avatar?: string;
   createdAt?: string; // User's joining/registration date
 }

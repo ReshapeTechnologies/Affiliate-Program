@@ -36,6 +36,7 @@ function AppContent() {
     id: user.email,
     name: user.name,
     email: user.email,
+    role: user.role,
     avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(
       user.name
     )}&background=40E5B7&color=0E1412`,

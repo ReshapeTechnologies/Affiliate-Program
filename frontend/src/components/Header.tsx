@@ -59,7 +59,12 @@ export default function Header({ user, onLogout }: HeaderProps) {
               <img src={user.avatar} alt={user.name} className="user-avatar" />
             )}
             <div className="user-details">
-              <span className="user-name">{user.name}</span>
+              <div className="user-name-row">
+                <span className="user-name">{user.name}</span>
+                {user.role === "admin" && (
+                  <span className="admin-badge">Admin</span>
+                )}
+              </div>
               <span className="user-email">{user.email}</span>
             </div>
             {onLogout && (

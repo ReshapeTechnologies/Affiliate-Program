@@ -10,15 +10,23 @@ import {
 const STORAGE_KEYS = {
   USER_NAME: "affiliateUserName",
   USER_EMAIL: "affiliateUserEmail",
+  USER_ROLE: "affiliateUserRole",
 };
+
+// Runtime validation for role to prevent tampered localStorage values
+function validateRole(role: any): "user" | "admin" {
+  return role === "admin" ? "admin" : "user"; // Only "admin" is valid, everything else defaults to "user"
+}
 
 // Helper to get stored user from localStorage
 function getStoredUser(): AuthUser | null {
   const name = localStorage.getItem(STORAGE_KEYS.USER_NAME);
   const email = localStorage.getItem(STORAGE_KEYS.USER_EMAIL);
+  const storedRole = localStorage.getItem(STORAGE_KEYS.USER_ROLE);
+  const role = validateRole(storedRole); // Runtime validation
 
   if (name && email) {
-    return { name, email };
+    return { name, email, role };
   }
   return null;
 }
@@ -27,16 +35,16 @@ function getStoredUser(): AuthUser | null {
 function saveUserToStorage(user: AuthUser): void {
   localStorage.setItem(STORAGE_KEYS.USER_NAME, user.name);
   localStorage.setItem(STORAGE_KEYS.USER_EMAIL, user.email);
+  localStorage.setItem(STORAGE_KEYS.USER_ROLE, user.role || "user");
 }
 
 // Helper to clear user from localStorage
 function clearUserFromStorage(): void {
   localStorage.removeItem(STORAGE_KEYS.USER_NAME);
   localStorage.removeItem(STORAGE_KEYS.USER_EMAIL);
+  localStorage.removeItem(STORAGE_KEYS.USER_ROLE);
   // Also clear legacy authToken if present
   localStorage.removeItem("authToken");
-  // Clear legacy role if present
-  localStorage.removeItem("affiliateUserRole");
 }
 
 interface AuthProviderProps {
@@ -57,6 +65,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const authUser: AuthUser = {
           name: response.name,
           email: response.email,
+          role: response.role || "user",
         };
         setUser(authUser);
         saveUserToStorage(authUser);
@@ -88,6 +97,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           const authUser: AuthUser = {
             name: response.name,
             email: response.email,
+            role: response.role || "user",
           };
           setUser(authUser);
           saveUserToStorage(authUser);
@@ -102,7 +112,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
               const me = await apiService.getAffiliateUser();
 
               if (me.success && me.name && me.email) {
-                const authUser: AuthUser = { name: me.name, email: me.email };
+                const authUser: AuthUser = {
+                  name: me.name,
+                  email: me.email,
+                  role: me.role || "user",
+                };
                 setUser(authUser);
                 saveUserToStorage(authUser);
                 return { success: true };

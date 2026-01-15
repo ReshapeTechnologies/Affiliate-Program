@@ -11,6 +11,7 @@ type AuthResponse = {
   message?: string;
   name?: string;
   email?: string;
+  role?: "user" | "admin";
 };
 
 /**
