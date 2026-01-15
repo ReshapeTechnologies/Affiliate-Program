@@ -1,10 +1,9 @@
 import { useState, useMemo } from "react";
 import type { SortConfig } from "../utils/filters";
-import { filterItems, sortItems, filterByDateRange } from "../utils/filters";
+import { filterItems, sortItems } from "../utils/filters";
 
 interface UseFiltersOptions<T extends Record<string, any>> {
   searchKeys?: (keyof T)[];
-  dateKey?: keyof T;
 }
 
 export function useFilters<T extends Record<string, any>>(
@@ -13,8 +12,6 @@ export function useFilters<T extends Record<string, any>>(
 ) {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [sortConfig, setSortConfig] = useState<SortConfig<T> | null>(null);
-  const [startDate, setStartDate] = useState<string | null>(null);
-  const [endDate, setEndDate] = useState<string | null>(null);
 
   const filteredAndSorted = useMemo(() => {
     let result = [...items];
@@ -24,26 +21,13 @@ export function useFilters<T extends Record<string, any>>(
       result = filterItems(result, searchTerm, options.searchKeys);
     }
 
-    // Apply date range filter
-    if (options.dateKey && (startDate || endDate)) {
-      result = filterByDateRange(result, options.dateKey, startDate, endDate);
-    }
-
     // Apply sorting
     if (sortConfig) {
       result = sortItems(result, sortConfig);
     }
 
     return result;
-  }, [
-    items,
-    searchTerm,
-    sortConfig,
-    startDate,
-    endDate,
-    options.searchKeys,
-    options.dateKey,
-  ]);
+  }, [items, searchTerm, sortConfig, options.searchKeys]);
 
   const handleSort = (key: keyof T) => {
     setSortConfig((current) => {
@@ -60,8 +44,6 @@ export function useFilters<T extends Record<string, any>>(
   const clearFilters = () => {
     setSearchTerm("");
     setSortConfig(null);
-    setStartDate(null);
-    setEndDate(null);
   };
 
   return {
@@ -70,11 +52,7 @@ export function useFilters<T extends Record<string, any>>(
     setSearchTerm,
     sortConfig,
     handleSort,
-    startDate,
-    setStartDate,
-    endDate,
-    setEndDate,
     clearFilters,
-    hasActiveFilters: !!(searchTerm || sortConfig || startDate || endDate),
+    hasActiveFilters: !!(searchTerm || sortConfig),
   };
 }

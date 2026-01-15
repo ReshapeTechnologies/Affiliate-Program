@@ -3,7 +3,8 @@ import Dashboard from "./components/Dashboard";
 import LoginPage from "./components/LoginPage";
 import LoadingSpinner from "./components/LoadingSpinner";
 import { useReferralData } from "./hooks/useReferralData";
-import { useAuth, AuthProvider } from "./context/AuthContext";
+import { useAuth } from "./context/AuthContext";
+import { AuthProvider } from "./context/AuthProvider";
 import type { User } from "./types";
 
 function AppContent() {

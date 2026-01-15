@@ -7,7 +7,6 @@ import type {
 import Header from "./Header";
 import HomeView from "./HomeView";
 import ErrorMessage from "./ErrorMessage";
-import { getEarliestStartDate } from "../utils/transformers";
 
 interface DashboardProps {
   user: User;
@@ -34,11 +33,6 @@ export default function Dashboard({
   onRetry,
   onLogout,
 }: DashboardProps) {
-  const earliestStartDate = getEarliestStartDate(referralCodes);
-  const defaultChartStart =
-    earliestStartDate ||
-    (user.createdAt ? user.createdAt.split("T")[0] : undefined);
-
   if (error) {
     return <ErrorMessage message={error} onRetry={onRetry} />;
   }
@@ -56,7 +50,6 @@ export default function Dashboard({
               referralCodes={referralCodes}
               loadingCodes={loadingCodes}
               timeSeriesData={timeSeriesData}
-              defaultStartDate={defaultChartStart}
               loadingHistory={loadingHistory}
             />
           </div>

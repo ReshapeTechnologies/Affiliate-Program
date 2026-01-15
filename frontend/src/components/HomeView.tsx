@@ -12,7 +12,6 @@ interface HomeViewProps {
   referralCodes: ReferralCode[];
   loadingCodes?: boolean;
   timeSeriesData: TimeSeriesData[];
-  defaultStartDate?: string;
   loadingHistory?: boolean;
 }
 
@@ -105,7 +104,6 @@ export default function HomeView({
   referralCodes,
   loadingCodes = false,
   timeSeriesData,
-  defaultStartDate,
   loadingHistory = false,
 }: HomeViewProps) {
   // Build display name map from all referral codes
@@ -164,7 +162,6 @@ export default function HomeView({
       ) : (
         <PerformanceCharts
           timeSeriesData={timeSeriesData}
-          defaultStartDate={defaultStartDate}
           eventDisplayNames={displayNameMap}
           commissionRules={aggregatedCommissionRules}
         />

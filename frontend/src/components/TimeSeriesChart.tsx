@@ -1,4 +1,4 @@
-import { useState, useMemo, useId } from "react";
+import { useMemo, useId } from "react";
 import {
   LineChart,
   Line,
@@ -9,15 +9,9 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import DateRangeSelector from "./DateRangeSelector";
-
-type PresetOption = "last-30" | "all-time" | "custom";
 
 export interface TimeSeriesChartConfig {
   title?: string;
-  defaultStartDate?: string; // If not provided, will use date range from data
-  defaultEndDate?: string; // If not provided, will use current date
-  showDateRangeSelector?: boolean;
   height?: number;
   yAxisLabel?: string;
   isEarningsMode?: boolean; // If true, format values with $ symbol after number
@@ -37,66 +31,6 @@ export default function TimeSeriesChart({
   data,
   config,
 }: TimeSeriesChartProps) {
-  const todayIso = new Date().toISOString().split("T")[0];
-
-  const getAllTimeStartDate = () => {
-    if (config.defaultStartDate) {
-      return config.defaultStartDate;
-    }
-    if (data.length > 0) {
-      return data[0].date;
-    }
-    return null;
-  };
-
-  const getLast30StartDate = () => {
-    const date = new Date();
-    date.setDate(date.getDate() - 30);
-    return date.toISOString().split("T")[0];
-  };
-
-  const getDefaultStartDate = () => {
-    const allTimeStart = getAllTimeStartDate();
-    if (config.defaultStartDate) return config.defaultStartDate;
-    if (allTimeStart) return allTimeStart;
-    return getLast30StartDate();
-  };
-
-  const getDefaultEndDate = () => {
-    if (config.defaultEndDate) {
-      return config.defaultEndDate;
-    }
-    return todayIso;
-  };
-
-  const [startDate, setStartDate] = useState<string>(getDefaultStartDate());
-  const [endDate, setEndDate] = useState<string>(getDefaultEndDate());
-  const [preset, setPreset] = useState<PresetOption>(() => {
-    const last30Start = getLast30StartDate();
-    const allTimeStart = getAllTimeStartDate();
-    const initialStart = getDefaultStartDate();
-
-    if (
-      allTimeStart &&
-      initialStart === allTimeStart &&
-      initialStart !== last30Start
-    ) {
-      return "all-time";
-    }
-    if (initialStart === last30Start) {
-      return "last-30";
-    }
-    return "custom";
-  });
-
-  // Filter data based on date range
-  const filteredData = useMemo(() => {
-    return data.filter((item) => {
-      const itemDate = item.date;
-      return itemDate >= startDate && itemDate <= endDate;
-    });
-  }, [data, startDate, endDate]);
-
   // Format date for display
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -104,10 +38,12 @@ export default function TimeSeriesChart({
   };
 
   // Prepare data for charts
-  const chartData = filteredData.map((item) => ({
-    ...item,
-    dateFormatted: formatDate(item.date),
-  }));
+  const chartData = useMemo(() => {
+    return data.map((item) => ({
+      ...item,
+      dateFormatted: formatDate(item.date),
+    }));
+  }, [data]);
 
   const integerTicks = useMemo(() => {
     const maxValue = chartData.reduce((max, row) => {
@@ -134,39 +70,7 @@ export default function TimeSeriesChart({
     return ticks;
   }, [chartData, config.lines]);
 
-  const applyPreset = (nextPreset: PresetOption) => {
-    if (nextPreset === "last-30") {
-      setStartDate(getLast30StartDate());
-      setEndDate(todayIso);
-    } else if (nextPreset === "all-time") {
-      const allTimeStart = getAllTimeStartDate() ?? getLast30StartDate();
-      setStartDate(allTimeStart);
-      setEndDate(todayIso);
-    }
-    setPreset(nextPreset);
-  };
-
-  const handleReset = () => {
-    applyPreset("last-30");
-  };
-
-  const handleStartDateChange = (value: string) => {
-    setStartDate(value);
-    setPreset("custom");
-  };
-
-  const handleEndDateChange = (value: string) => {
-    setEndDate(value);
-    setPreset("custom");
-  };
-
   const height = config.height || 400;
-  const showDateRangeSelector = config.showDateRangeSelector !== false; // Default to true
-  const resetStartDate =
-    preset === "all-time"
-      ? getAllTimeStartDate() ?? getLast30StartDate()
-      : getLast30StartDate();
-  const resetEndDate = todayIso;
   const chartId = useId();
 
   return (
@@ -174,86 +78,6 @@ export default function TimeSeriesChart({
       {config.title && (
         <div className="chart-header">
           <h3 className="chart-title">{config.title}</h3>
-          {showDateRangeSelector && (
-            <div className="date-range-selector">
-              <select
-                className="date-preset-select"
-                value={preset}
-                onChange={(e) => {
-                  const value = e.target.value as PresetOption;
-                  if (value === "custom") {
-                    setPreset("custom");
-                  } else {
-                    applyPreset(value);
-                  }
-                }}
-              >
-                <option value="last-30">Last 30 days</option>
-                <option value="all-time">All time</option>
-                <option value="custom">Custom</option>
-              </select>
-              {preset === "custom" ? (
-                <DateRangeSelector
-                  startDate={startDate}
-                  endDate={endDate}
-                  onStartDateChange={handleStartDateChange}
-                  onEndDateChange={handleEndDateChange}
-                  onReset={handleReset}
-                  resetStartDate={resetStartDate}
-                  resetEndDate={resetEndDate}
-                  resetLabel="Reset to last 30 days"
-                  showResetButton
-                />
-              ) : (
-                <div className="date-range-summary">
-                  <span className="date-range-chip">
-                    {startDate} → {endDate}
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-      {!config.title && showDateRangeSelector && (
-        <div className="chart-header">
-          <div className="date-range-selector">
-            <select
-              className="date-preset-select"
-              value={preset}
-              onChange={(e) => {
-                const value = e.target.value as PresetOption;
-                if (value === "custom") {
-                  setPreset("custom");
-                } else {
-                  applyPreset(value);
-                }
-              }}
-            >
-              <option value="last-30">Last 30 days</option>
-              <option value="all-time">All time</option>
-              <option value="custom">Custom</option>
-            </select>
-            {preset === "custom" ? (
-              <DateRangeSelector
-                startDate={startDate}
-                endDate={endDate}
-                onStartDateChange={handleStartDateChange}
-                onEndDateChange={handleEndDateChange}
-                onReset={handleReset}
-                resetStartDate={resetStartDate}
-                resetEndDate={resetEndDate}
-                resetLabel="Reset to last 30 days"
-                showResetButton
-              />
-            ) : (
-              <div className="date-range-summary">
-                <span className="date-range-chip">
-                  {startDate} → {endDate}
-                </span>
-              </div>
-            )}
-          </div>
         </div>
       )}
       <ResponsiveContainer width="100%" height={height}>

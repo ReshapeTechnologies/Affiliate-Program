@@ -6,19 +6,13 @@ import {
   Filter,
   ChevronDown,
   Check,
-  // Calendar as CalendarIcon,
 } from "lucide-react";
 import type { TimeSeriesData } from "../types";
 import type { CommissionRule } from "../types/commission";
 import TimeSeriesChart, { type TimeSeriesChartConfig } from "./TimeSeriesChart";
-
-type DatePreset = "last-30" | "last-90" | "all-time" | "custom";
 interface PerformanceChartsProps {
   timeSeriesData: TimeSeriesData[];
   title?: string;
-  defaultStartDate?: string;
-  defaultEndDate?: string;
-  showDateRangeSelector?: boolean;
   eventDisplayNames?: Map<string, string>;
   commissionRules?: CommissionRule[];
 }
@@ -37,9 +31,6 @@ const COLORS = [
 export default function PerformanceCharts({
   timeSeriesData,
   // title = "Performance Overview",
-  defaultStartDate,
-  defaultEndDate,
-  // showDateRangeSelector = true,
   eventDisplayNames,
   commissionRules,
 }: PerformanceChartsProps) {
@@ -48,22 +39,8 @@ export default function PerformanceCharts({
   );
   const [viewMode, setViewMode] = useState<"count" | "earnings">("count");
   const [isMetricMenuOpen, setIsMetricMenuOpen] = useState(false);
-  // const [isDateMenuOpen, setIsDateMenuOpen] = useState(false);
-
-  // Date State
-  const todayIso = new Date().toISOString().split("T")[0];
-  const last30DaysIso = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .split("T")[0];
-
-  // const [datePreset, setDatePreset] = useState<DatePreset>("last-30");
-  const [startDate, setStartDate] = useState<string>(
-    defaultStartDate || last30DaysIso
-  );
-  const [endDate, setEndDate] = useState<string>(defaultEndDate || todayIso);
 
   const metricMenuRef = useRef<HTMLDivElement>(null);
-  const dateMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -73,50 +50,12 @@ export default function PerformanceCharts({
       ) {
         setIsMetricMenuOpen(false);
       }
-      if (
-        dateMenuRef.current &&
-        !dateMenuRef.current.contains(event.target as Node)
-      ) {
-        // setIsDateMenuOpen(false);
-      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
-
-  // Handle Preset Changes
-  const handlePresetChange = (preset: DatePreset) => {
-    // setDatePreset(preset);
-    const end = new Date().toISOString().split("T")[0];
-    let start = "";
-
-    if (preset === "last-30") {
-      start = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-        .toISOString()
-        .split("T")[0];
-    } else if (preset === "last-90") {
-      start = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
-        .toISOString()
-        .split("T")[0];
-    } else if (preset === "all-time") {
-      // Find earliest date in data
-      if (timeSeriesData.length > 0) {
-        start = timeSeriesData[0].date;
-      } else {
-        start = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000)
-          .toISOString()
-          .split("T")[0];
-      }
-    }
-
-    if (preset !== "custom") {
-      setStartDate(start);
-      setEndDate(end);
-      // setIsDateMenuOpen(false);
-    }
-  };
 
   // Collect all unique event keys from all data points
   const uniqueEvents = new Set<string>();
@@ -137,12 +76,7 @@ export default function PerformanceCharts({
     return rule ? rule.rate : 0;
   };
 
-  // Filter Data by Date FIRST
-  const filteredTimeData = timeSeriesData.filter(
-    (d) => d.date >= startDate && d.date <= endDate
-  );
-
-  const flatData = filteredTimeData.map((d) => {
+  const flatData = timeSeriesData.map((d) => {
     const flatNode: any = { date: d.date };
     let totalConversions = 0;
     let totalEarnings = 0;
@@ -236,27 +170,15 @@ export default function PerformanceCharts({
   const resetFilters = () => {
     setSelectedMetrics(null);
     setViewMode("count");
-    handlePresetChange("last-30");
   };
 
   const chartConfig: TimeSeriesChartConfig = {
     // title: "Events Over Time",
-    defaultStartDate,
-    defaultEndDate,
-    showDateRangeSelector: false,
     height: 400,
     yAxisLabel: viewMode === "count" ? "Count" : "Amount ($)",
     isEarningsMode: viewMode === "earnings",
     lines: lines.filter((l) => metricsToShow.has(l.dataKey)),
   };
-
-  // Helper for date display
-  // const getDateLabel = () => {
-  //   if (datePreset === "last-30") return "Last 30 Days";
-  //   if (datePreset === "last-90") return "Last 90 Days";
-  //   if (datePreset === "all-time") return "All Time";
-  //   return "Custom Range";
-  // };
 
   return (
     <div className="charts-section bg-bg-secondary rounded-lg border border-border-primary p-4">
@@ -291,87 +213,6 @@ export default function PerformanceCharts({
           </div>
 
           <div className="h-6 w-px bg-border-primary mx-1 hidden sm:block"></div>
-
-          {/* Date Filter Dropdown */}
-          {/* <div className="relative" ref={dateMenuRef}>
-            <button
-              onClick={() => setIsDateMenuOpen(!isDateMenuOpen)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border ${
-                isDateMenuOpen
-                  ? "bg-bg-tertiary text-brand border-brand"
-                  : "bg-bg-secondary text-text-primary border-border-primary hover:bg-bg-tertiary hover:border-text-secondary/30"
-              }`}
-            >
-              <CalendarIcon className="w-4 h-4" />
-              <span className="hidden sm:inline">{getDateLabel()}</span>
-              <ChevronDown
-                className={`w-3.5 h-3.5 transition-transform ${
-                  isDateMenuOpen ? "rotate-180" : ""
-                }`}
-              />
-            </button>
-
-            {isDateMenuOpen && (
-              <div className="absolute top-full left-0 mt-2 w-72 bg-gray-900 rounded-lg shadow-secondary border border-border-primary z-20 overflow-hidden">
-                <div className="p-2 border-b border-border-primary bg-bg-tertiary">
-                  <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
-                    Date Range
-                  </span>
-                </div>
-                <div className="p-2 grid grid-cols-1 gap-1">
-                  {["last-30", "last-90", "all-time", "custom"].map(
-                    (preset) => (
-                      <button
-                        key={preset}
-                        onClick={() => handlePresetChange(preset as DatePreset)}
-                        className={`text-left px-3 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-between ${
-                          datePreset === preset
-                            ? "bg-bg-tertiary text-brand"
-                            : "text-text-primary hover:bg-bg-tertiary"
-                        }`}
-                      >
-                        {preset === "last-30" && "Last 30 Days"}
-                        {preset === "last-90" && "Last 90 Days"}
-                        {preset === "all-time" && "All Time"}
-                        {preset === "custom" && "Custom Range"}
-                        {datePreset === preset && <Check className="w-4 h-4" />}
-                      </button>
-                    )
-                  )}
-                </div>
-
-                {/* Custom Date Inputs */}
-          {/* {datePreset === "custom" && (
-                  <div className="p-3 border-t border-border-primary bg-bg-tertiary space-y-3">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <label className="text-xs text-text-secondary font-medium ml-1">
-                          Start
-                        </label>
-                        <input
-                          type="date"
-                          value={startDate}
-                          onChange={(e) => setStartDate(e.target.value)}
-                          className="w-full text-sm bg-bg-secondary text-text-primary border border-border-primary rounded-md focus:border-brand focus:ring-1 focus:ring-brand outline-none px-2 py-1"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs text-text-secondary font-medium ml-1">
-                          End
-                        </label>
-                        <input
-                          type="date"
-                          value={endDate}
-                          onChange={(e) => setEndDate(e.target.value)}
-                          className="w-full text-sm bg-bg-secondary text-text-primary border border-border-primary rounded-md focus:border-brand focus:ring-1 focus:ring-brand outline-none px-2 py-1"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div> */}
 
           {/* Metric Filter Dropdown */}
           <div className="relative" ref={metricMenuRef}>

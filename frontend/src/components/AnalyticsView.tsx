@@ -4,14 +4,12 @@ import type { TimeSeriesData } from "../types";
 
 interface AnalyticsViewProps {
   timeSeriesData: TimeSeriesData[];
-  defaultStartDate?: string;
   loading?: boolean;
   rawPurchaseHistoryResponse?: any;
 }
 
 export default function AnalyticsView({
   timeSeriesData,
-  defaultStartDate,
   // rawPurchaseHistoryResponse,
   loading = false,
 }: AnalyticsViewProps) {
@@ -26,10 +24,7 @@ export default function AnalyticsView({
           Performance Analytics
         </h2>
       </div>
-      <PerformanceCharts
-        timeSeriesData={timeSeriesData}
-        defaultStartDate={defaultStartDate}
-      />
+      <PerformanceCharts timeSeriesData={timeSeriesData} />
 
       {/* Debug Section */}
       {/* {rawPurchaseHistoryResponse && (

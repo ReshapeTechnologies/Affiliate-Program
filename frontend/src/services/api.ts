@@ -152,24 +152,24 @@ class ApiService {
       body: JSON.stringify({ email, password }),
     });
 
-    console.log(
-      "[affiliateLogin] Response received:",
-      JSON.stringify(response, null, 2)
-    );
+    // console.log(
+    //   "[affiliateLogin] Response received:",
+    //   JSON.stringify(response, null, 2)
+    // );
 
     // In production, ensure the response has name and email
     if (response.success) {
-      console.log(
-        "[affiliateLogin] Login successful, waiting for cookie to be set..."
-      );
+      // console.log(
+      //   "[affiliateLogin] Login successful, waiting for cookie to be set..."
+      // );
       // Add small delay to ensure cookie is set before subsequent requests
       await new Promise((resolve) => setTimeout(resolve, 100));
-      console.log(
-        "[affiliateLogin] Checking document.cookie:",
-        document.cookie ? "cookies present" : "no cookies visible (HttpOnly)"
-      );
+      // console.log(
+      //   "[affiliateLogin] Checking document.cookie:",
+      //   document.cookie ? "cookies present" : "no cookies visible (HttpOnly)"
+      // );
     } else {
-      console.log("[affiliateLogin] Login failed:", response.message);
+      // console.log("[affiliateLogin] Login failed:", response.message);
     }
 
     return response;

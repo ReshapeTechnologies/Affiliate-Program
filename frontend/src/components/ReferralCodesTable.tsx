@@ -1,6 +1,5 @@
 import { useState, useMemo } from "react";
 import type { ReferralCode } from "../types";
-import ReferralCodeDetailView from "./ReferralCodeDetailView";
 import TableFilters from "./TableFilters";
 import { useToast } from "./ToastProvider";
 import { formatCurrency } from "../config/commission";
@@ -59,8 +58,6 @@ function buildEventColumns(codes: ReferralCode[]): EventColumn[] {
 }
 
 export default function ReferralCodesTable({ codes }: ReferralCodesTableProps) {
-  const [selectedCodeDetail, setSelectedCodeDetail] =
-    useState<ReferralCode | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [usageFilter, setUsageFilter] = useState<"all" | "used" | "unused">(
@@ -80,6 +77,7 @@ export default function ReferralCodesTable({ codes }: ReferralCodesTableProps) {
   // Filter and sort codes
   const filteredAndSortedCodes = useMemo(() => {
     let result = [...codes];
+    // console.log("Initial codes:", result);
 
     // Apply search filter
     if (searchTerm) {
@@ -317,13 +315,6 @@ export default function ReferralCodesTable({ codes }: ReferralCodesTableProps) {
           </tbody>
         </table>
       </div>
-
-      {selectedCodeDetail && (
-        <ReferralCodeDetailView
-          referralCode={selectedCodeDetail}
-          onClose={() => setSelectedCodeDetail(null)}
-        />
-      )}
     </div>
   );
 }
