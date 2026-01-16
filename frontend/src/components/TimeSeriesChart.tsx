@@ -138,7 +138,7 @@ export default function TimeSeriesChart({
           {config.lines.map((line) => (
             <Line
               key={line.dataKey}
-              type="natural"
+              type="monotone"
               dataKey={line.dataKey}
               stroke={line.color}
               strokeWidth={2}
